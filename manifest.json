@@ -1,0 +1,11 @@
+{
+    "files": {
+        ".eslintrc.json": "ce5725099ca92b6442cd234dddadd3d83b806d5a83df8bf149f8aabe7c2c8de4",
+        "index.js": "9b829a94ffec36b0901d4c8123c89135222d34fe80dabbed0daac5ea5f7a8d47",
+        "module.json": "e1953079caeb42734fca09f134f42bbdd2bd1a5403491f907388d3d2307e9e7a",
+        "positions.json": "14f22ae63ddf5becd2d33ca558cb8f77d9f508e6a3c7df7e9a328ea40b3ee1de"
+    },
+    "defs": {
+        "C_PLAYER_LOCATION": 4
+    }
+}
