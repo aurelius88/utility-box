@@ -3,3 +3,8 @@
 
 # module output
 positions.json
+
+# SHAGen tool
+SHAGen.exe
+SHAGen.exe.config
+Newtonsoft.Json.dll
