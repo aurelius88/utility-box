@@ -34,26 +34,34 @@ module.exports = function utilityBox(dispatch) {
             positions = new Map(data);
         }
         gameId = dispatch.game.me.gameId;
+        scanning = true;
+        startScanning();
     });
     
     dispatch.game.on('leave_game', () => {
         let posData = [];
         positions.forEach((v,k) => posData.push([k,v]));
         saveJsonData(fileName,posData);
-        unload();
+        scanning = false;
+        stopScanning();
     });
 
 	command.add(moduleName, parseArgs);
     
+    function switchScanning() {
+        if(scanning = !scanning) startScanning();
+        else stopScanning();
+    }
+
     function parseArgs(argument,arg1,arg2) {
-       if(argument == "scan") {
-            if(scanning = !scanning) startScanning();
-            else stopScanning();
-       } else if (argument === "pos") {
+        //command.message(`args: "${argument}", "${arg1}", "${arg2}"`);
+        if(argument == "scan") {
+            switchScanning();
+        } else if (argument === "pos") {
             if (arg1 === "save") {
-                if(arg2 !== null && arg2 !== "") {
-                    if(arg2 === "list" || arg2 === "save" || arg2 == "delete" || arg2 === "reset") {
-                        command.message("You cannot name your position to 'save', 'delete', 'reset' or 'list'. Please choose another name.");
+                if(arg2 !== undefined && arg2 !== "") {
+                    if(arg2 === "list" || arg2 === "save" || arg2 === "delete" || arg2 === "reset") {
+                        command.message('You cannot name your position to "save", "delete", "reset" or "list". Please choose another name.');
                     } else {
                         savePosition(arg2);
                     }
@@ -64,11 +72,11 @@ module.exports = function utilityBox(dispatch) {
             } else if(arg1 === "list") {
                 listPositions();
             } else if(arg1 === "delete") {
-                if(arg2 !== null && arg2 !== "") {
+                if(arg2 !== undefined && arg2 !== "") {
                     if(positions.delete(arg2)) {
-                        command.message("Position '"+arg2+"' deleted.");
+                        command.message(`Position "${arg2}+" deleted.`);
                     } else {
-                        command.message("There is no position with name '"+arg2+"'.");
+                        command.message(`There is no position with name "${arg2}".`);
                     }
                 } else {
                     command.message("Missing arguments: "+argument+" "+arg1+" "+arg2);
@@ -77,22 +85,26 @@ module.exports = function utilityBox(dispatch) {
                 
             } else if(arg1 === "reset") {
                 positions.clear();
-            } else if(arg1 !== null && arg1 !== "") {
-                var location = positions.get(arg1,null);
+            } else if(arg1 !== undefined && arg1 !== "") {
+                let location = positions.get(arg1,null);
                 if(location !== null) {
-                    command.message(arg1+": "+location);
+                    command.message(`"${arg1}": ${location}`);
                 } else {
-                    command.message("There is no position with name '"+arg1+"'.");
+                    command.message(`There is no position with name "${arg1}".`);
                 }
-            } else if(arg1 === null || arg1 === "") {
-                command.message("Current Pos: "+lastLocation);
+            } else if(arg1 === undefined || arg1 === "") {
+                if(lastLocation !== undefined) {
+                    command.message(`Current Position:  ${lastLocation}`);
+                } else {
+                    command.message("No position, yet. Please move one step or jump to get your position. And try it again.");
+                }
             } else {
                 command.message("Usage for: "+moduleName+" "+argument);
                 command.message("pos: get current postiton.");
-                command.message("pos save name: save current position to 'name'.");
-                command.message("pos delete name: deletes position named 'name'.");
+                command.message('pos save name: save current position to "name".');
+                command.message('pos delete name: deletes position named "name".');
                 command.message("pos list: list all saved positions.");
-                command.message("pos name: display position saved as 'name'.");
+                command.message('pos name: display position saved as "name".');
             }
        } else {
             command.message("GameId = "+gameId);
@@ -113,14 +125,14 @@ module.exports = function utilityBox(dispatch) {
             command.message("There is already a position saved with this name. Choose another name.");
             return false;
         }
-        
-        positions.set(name,lastLocation);
-        command.message(`Position saved as ${name}.`);
+        let pos = lastLocation;
+        positions.set(name, pos);
+        command.message(`Position "${JSON.stringify(pos)}" saved as "${name}".`);
         return true;
     }
 
-    function printPositions(value, key, map) {
-        command.message(`${key}: ${JSON.stringify(value)}`);
+    function printPositions(value, key) {
+        command.message(`"${key}": ${JSON.stringify(value)}`);
     }
     
     function listPositions() {
@@ -159,7 +171,7 @@ module.exports = function utilityBox(dispatch) {
                 default: typeName="Unknown: "+event.type;
             }
             lastLocation = event.loc;
-            //command.message("loc = "+event.loc+", "+typeName)
+            //command.message(`${typeName} (${event.speed}) => ${event.loc}`);
         });
         command.message('Scanning started.');
     }
