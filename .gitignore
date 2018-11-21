@@ -3,6 +3,11 @@
 
 # module output
 positions.json
+opcodes.json
+groups.json
+out
+logs
+opcodes
 
 # SHAGen tool
 SHAGen.exe
