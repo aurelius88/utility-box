@@ -1,9 +1,10 @@
 {
     "files": {
-        "index.js": "fa69a249077ec79d024f6d4b442b160ce1b348b81ae9ad8adff6e9ba8a592e93",
-        "module.json": "9cb2a878d5893e247ce1a750b3a2b44156c027b2dc960de51269fb5cfd5095ba"
+        "index.js": "dffea4098d5cfd238fb3d486828270fca3d01fe2e72839fcdff6cf17a14b84ba",
+        "module.json": "9cb2a878d5893e247ce1a750b3a2b44156c027b2dc960de51269fb5cfd5095ba",
+        "lib/file-helper.js": "5709398cee4c7b35026539c409208e9b48d7a2395dcaf3abcabf163a7455388b",
+        "lib/hook-manager.js": "017cc9e325e11cafcee49e55e488dc2296ec5bcde9de71c65cab9a3369042c6f",
+        "lib/utils.js": "a7244113187ee9d5f43ce80ce4d4396a495b407299d91ac75db2a79402aab4fb"
     },
-    "defs": {
-        "C_PLAYER_LOCATION": 4
-    }
+    "defs": {}
 }
