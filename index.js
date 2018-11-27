@@ -70,7 +70,7 @@ module.exports = function utilityBox( dispatch ) {
     const GENERAL_LOG_PATH = path.join(__dirname,"logs");
     const command = dispatch.command;
     const hookManager = new HookManager( dispatch );
-    const log = {};
+    const logger = {};
     if(!fs.existsSync(OPCODES_PATH))
         fs.mkdirSync(OPCODES_PATH);
     if(!fs.existsSync(GENERAL_LOG_PATH))
@@ -98,18 +98,12 @@ module.exports = function utilityBox( dispatch ) {
     //saveJsonData(OPCODE_JSON, Array.from(OPCODE_MAP));
     //saveJsonData(GROUPED_OPCODE_JSON, Array.from(GROUPED_OPCODE_MAP));
 
-    log["player"] = bunyan.createLogger({
-        name: "player",
-        streams: [{
-            path: path.join(GENERAL_LOG_PATH, "player.log"),
-            level: "debug"
-        }]
-    });
+
 
     initHooks();
     initFixHooks();
 
-    hookManager.hookGroup("player");
+    hookManager.hookGroup("player-ep");
 
     dispatch.game.on( "enter_game", () => {
         gameId = dispatch.game.me.gameId;
@@ -197,8 +191,8 @@ module.exports = function utilityBox( dispatch ) {
                                 let arrow = fromServer ? "->" : "<-";
                                 let right = fake && !fromServer ? "P" : "C";
                                 printMessage(`${left} ${arrow} ${right} ${code}`);
-                                if(!log[opcode]) {
-                                    log[opcode] = bunyan.createLogger({
+                                if(!logger[opcode]) {
+                                    logger[opcode] = bunyan.createLogger({
                                         name: "opcode",
                                         streams: [{
                                             path: path.join(OPCODES_PATH, opcode + ".log"),
@@ -206,12 +200,12 @@ module.exports = function utilityBox( dispatch ) {
                                         }]
                                     });
                                 }
-                                log[opcode].debug(data.toString("hex"));
+                                logger[opcode].debug(data.toString("hex"));
                             }
                         });
                         let msg = "";
                         if(!result.hook) {
-                            delete log[opcode];
+                            delete logger[opcode];
                             hookManager.unhookGroup("raw-opcode"+opcode);
                             msg = `<font color="${COLOR_DISABLE}">Stop</font>`;
                         } else { msg = `<font color="${COLOR_ENABLE}">Start</font>`; }
@@ -932,13 +926,15 @@ module.exports = function utilityBox( dispatch ) {
         float baseRev
         float tsRev
          */
-        hookManager.addTemplate("player", "S_PLAYER_CHANGE_EP", 1, e => {
-            let msg = [];
-            msg.push(`LVL: <font color="${COLOR_VALUE}">${e.level}</font>${e.levelUp? " (Level UP!)" : ""}`);
-            msg.push(`Total EP: <font color="${COLOR_VALUE}">${e.totalPoints}</font>\nXP gained: <font color="${COLOR_VALUE}">${e.expDifference}</font> (<font color="${COLOR_VALUE}">${e.baseRev}</font>, TS=<font color="${COLOR_VALUE}">${e.tsRev}</font>)`);
-            msg.push(`Left to CAP: <font color="${COLOR_VALUE}">${e.dailyExpMax*0.89-e.dailyExp}</font>[<font color="${COLOR_VALUE}">${e.dailyExpMax-e.dailyExp}</font>])`);
-            msg.push(`XP: <font color="${COLOR_VALUE}">${e.exp - e.dailyExp}</font> --(<font color="${COLOR_VALUE}">${e.dailyExp}</font>/<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*0.89)}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax}</font>])--> <font color="${COLOR_VALUE}">${e.exp}</font>`);
-            msg.map(x => { printMessage(x); log["player"].debug(cleanString(x)); });
+        hookManager.addTemplate("player-ep", "S_PLAYER_CHANGE_EP", 1, e => {
+            let messages = [];
+            messages.push(`LVL: <font color="${COLOR_VALUE}">${e.level}</font>${e.levelUp? " (Level UP!)" : ""}`);
+            messages.push(`Total EP: <font color="${COLOR_VALUE}">${e.totalPoints}</font>`);
+            messages.push(`XP gained: <font color="${COLOR_VALUE}">${e.expDifference}</font> (<font color="${COLOR_VALUE}">${e.baseRev}</font>, TS=<font color="${COLOR_VALUE}">${e.tsRev}</font>)`);
+            messages.push(`XP: <font color="${COLOR_VALUE}">${e.exp - e.dailyExp}</font> --(<font color="${COLOR_VALUE}">${e.dailyExp}</font>/<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*0.89)}</font>=<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*0.89)-e.dailyExp}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax}</font>=<font color="${COLOR_VALUE}">${e.dailyExpMax-e.dailyExp}</font>] )--> <font color="${COLOR_VALUE}">${e.exp}</font>`);
+
+            messages.map(x => { printMessage(x); });
+            logStringArray("player-ep", messages);
         });
 
         /*
@@ -954,34 +950,48 @@ module.exports = function utilityBox( dispatch ) {
         - uint32 id
         - uint32 level
          */
-        hookManager.addTemplate("player", "S_LOAD_EP_INFO", 1, e => {
-            let msg = [];
-            msg.push(`EP-INFO:`);
-            msg.push(`LVL: <font color="${COLOR_VALUE}">${e.level}</font>`);
-            msg.push(`EP: <font color="${COLOR_VALUE}">${e.usedPoints}</font>/<font color="${COLOR_VALUE}">${e.totalPoints}</font> (left: <font color="${COLOR_VALUE}">${e.totalPoints-e.usedPoints}</font>)`);
-            msg.push(`Left to CAP: <font color="${COLOR_VALUE}">${e.dailyExpMax*0.89-e.dailyExp}</font>[<font color="${COLOR_VALUE}">${e.dailyExpMax-e.dailyExp}</font>])`);
-            msg.push(`XP: <font color="${COLOR_VALUE}">${e.exp - e.dailyExp}</font> --(<font color="${COLOR_VALUE}">${e.dailyExp}</font>/<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*0.89)}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax}</font>])--> <font color="${COLOR_VALUE}">${e.exp}</font>`);
-            msg.push(`Perks:`);
-            for(let p of e.perks) {
-                msg.push(`<font color="${COLOR_VALUE}">${p.id}</font>: <font color="${COLOR_VALUE}">${p.level}</font>`);
-            }
-            msg.map(x => { printMessage(x); log["player"].debug(cleanString(x)); });
+        hookManager.addTemplate("player-ep", "S_LOAD_EP_INFO", 1, e => {
+            let messages = [];
+            messages.push(`EP-INFO:`);
+            messages.push(`LVL: <font color="${COLOR_VALUE}">${e.level}</font>`);
+            messages.push(`EP: <font color="${COLOR_VALUE}">${e.usedPoints}</font>/<font color="${COLOR_VALUE}">${e.totalPoints}</font> (left: <font color="${COLOR_VALUE}">${e.totalPoints-e.usedPoints}</font>)`);
+            messages.push(`XP: <font color="${COLOR_VALUE}">${e.exp - e.dailyExp}</font> --(<font color="${COLOR_VALUE}">${e.dailyExp}</font>/<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*0.89)}</font>=<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*0.89)-e.dailyExp}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax}</font>=<font color="${COLOR_VALUE}">${e.dailyExpMax-e.dailyExp}</font>] )--> <font color="${COLOR_VALUE}">${e.exp}</font>`);
+            // msg.push(`Perks:`);
+            // for(let p of e.perks) {
+            //     msg.push(`<font color="${COLOR_VALUE}">${p.id}</font>: <font color="${COLOR_VALUE}">${p.level}</font>`);
+            // }
+            messages.map(x => { printMessage(x); });
+            logStringArray("player-ep", messages);
         });
 
 
         // ?
-        hookManager.addTemplate("player", "S_SHOW_USER_EP_INFO", 1, e => {
+        hookManager.addTemplate("player-ep", "S_SHOW_USER_EP_INFO", 1, e => {
             let msg = `Show user EP-INFO.`;
-            log["player"].debug(cleanString(msg));
+            // logger["player"].debug(cleanString(msg));
             printMessage(msg);
         });
 
         // int32 limit
-        hookManager.addTemplate("player", "S_CHANGE_EP_EXP_DAILY_LIMIT", 1, e => {
+        hookManager.addTemplate("player-ep", "S_CHANGE_EP_EXP_DAILY_LIMIT", 1, e => {
             let msg = `Change Daily limit to <font color="${COLOR_VALUE}">${e.limit}</font>`;
-            log["player"].debug(cleanString(msg));
+            // logger["player"].debug(cleanString(msg));
             printMessage(msg);
         });
+    }
+
+    function logStringArray(logName, messages) {
+        if(!logger[logName]) {
+            logger[logName] = bunyan.createLogger({
+                name: logName,
+                streams: [{
+                    path: path.join(GENERAL_LOG_PATH, `${logName}.log`),
+                    level: "debug"
+                }]
+            });
+        }
+        messages = messages.map(x => cleanString(x));
+        logger[logName].debug(messages.join(";"));
     }
 
     //#################################################
