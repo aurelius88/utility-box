@@ -9,6 +9,7 @@ const COLOR_DISABLE = "#e64500";
 const COLOR_COMMAND = "#e6a321";
 const COLOR_VALUE = "#09d1d1";
 const COLOR_HIGHLIGHT = "#81ee7b";
+const SOFT_CAP_MOD_START = 0.88945;
 
 function getJsonData( pathToFile ) {
     try {
@@ -28,7 +29,7 @@ function readOpcodes(rawFile, jsonFile, map) {
     if(!data) data = newData;
     else data.concat(newData);
     if(map) {
-        data.map(x => map.set(x[0],x[1]))
+        data.map(x => map.set(x[0],x[1]));
     } else {
         map = new Map(data);
     }
@@ -90,7 +91,7 @@ module.exports = function utilityBox( dispatch ) {
     const OPCODE_JSON = "opcodes.json";
     const GROUPED_OPCODE_JSON = "groups.json";
     let OPCODE_FILE_NAME,OPCODE_MAP,GROUPED_OPCODE_MAP;
-    printMessage("VERSION "+version);
+
     OPCODE_FILE_NAME = `../../../node_modules/tera-data/map_base/protocol.${version}.map`;
     OPCODE_MAP = dispatch.base.protocolMap.code; // opcode -> name
     GROUPED_OPCODE_MAP = groupOpcodes(OPCODE_MAP); // group (S,C,DBS,...) -> opcode
@@ -929,9 +930,9 @@ module.exports = function utilityBox( dispatch ) {
         hookManager.addTemplate("player-ep", "S_PLAYER_CHANGE_EP", 1, e => {
             let messages = [];
             messages.push(`LVL: <font color="${COLOR_VALUE}">${e.level}</font>${e.levelUp? " (Level UP!)" : ""}`);
-            messages.push(`Total EP: <font color="${COLOR_VALUE}">${e.totalPoints}</font>`);
+            messages.push(`EP: <font color="${COLOR_VALUE}">${e.totalPoints}</font>`);
             messages.push(`XP gained: <font color="${COLOR_VALUE}">${e.expDifference}</font> (<font color="${COLOR_VALUE}">${e.baseRev}</font>, TS=<font color="${COLOR_VALUE}">${e.tsRev}</font>)`);
-            messages.push(`XP: <font color="${COLOR_VALUE}">${e.exp - e.dailyExp}</font> --(<font color="${COLOR_VALUE}">${e.dailyExp}</font>/<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*0.89)}</font>=<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*0.89)-e.dailyExp}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax}</font>=<font color="${COLOR_VALUE}">${e.dailyExpMax-e.dailyExp}</font>] )--> <font color="${COLOR_VALUE}">${e.exp}</font>`);
+            messages.push(`XP: <font color="${COLOR_VALUE}">${e.exp - e.dailyExp}</font> ==( <font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*SOFT_CAP_MOD_START)}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax}</font>] - <font color="${COLOR_VALUE}">${e.dailyExp}</font> = <font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*SOFT_CAP_MOD_START)-e.dailyExp}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax-e.dailyExp}</font>] )==> <font color="${COLOR_VALUE}">${e.exp}</font>`);
 
             messages.map(x => { printMessage(x); });
             logStringArray("player-ep", messages);
@@ -955,7 +956,7 @@ module.exports = function utilityBox( dispatch ) {
             messages.push(`EP-INFO:`);
             messages.push(`LVL: <font color="${COLOR_VALUE}">${e.level}</font>`);
             messages.push(`EP: <font color="${COLOR_VALUE}">${e.usedPoints}</font>/<font color="${COLOR_VALUE}">${e.totalPoints}</font> (left: <font color="${COLOR_VALUE}">${e.totalPoints-e.usedPoints}</font>)`);
-            messages.push(`XP: <font color="${COLOR_VALUE}">${e.exp - e.dailyExp}</font> --(<font color="${COLOR_VALUE}">${e.dailyExp}</font>/<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*0.89)}</font>=<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*0.89)-e.dailyExp}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax}</font>=<font color="${COLOR_VALUE}">${e.dailyExpMax-e.dailyExp}</font>] )--> <font color="${COLOR_VALUE}">${e.exp}</font>`);
+            messages.push(`XP: <font color="${COLOR_VALUE}">${e.exp - e.dailyExp}</font> ==(<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*SOFT_CAP_MOD_START)}</font>[<font color="${COLOR_VALUE}">${e.dailyExpMax}</font>]-<font color="${COLOR_VALUE}">${e.dailyExp}</font>=<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*SOFT_CAP_MOD_START)-e.dailyExp}</font>[<font color="${COLOR_VALUE}">${e.dailyExpMax-e.dailyExp}</font>] )==> <font color="${COLOR_VALUE}">${e.exp}</font>`);
             // msg.push(`Perks:`);
             // for(let p of e.perks) {
             //     msg.push(`<font color="${COLOR_VALUE}">${p.id}</font>: <font color="${COLOR_VALUE}">${p.level}</font>`);
