@@ -1101,7 +1101,9 @@ module.exports = function utilityBox(dispatch) {
             );
             messages.push(
                 `XP: <font color="${COLOR_VALUE}">${e.exp -
-                    e.dailyExp}</font> ==( <font color="${COLOR_VALUE}">${Math.floor(
+                    BigInt(
+                        e.dailyExp
+                    )}</font> ==( <font color="${COLOR_VALUE}">${Math.floor(
                     e.dailyExpMax * SOFT_CAP_MOD_START
                 )}</font> [<font color="${COLOR_VALUE}">${
                     e.dailyExpMax
@@ -1151,7 +1153,9 @@ module.exports = function utilityBox(dispatch) {
             );
             messages.push(
                 `XP: <font color="${COLOR_VALUE}">${e.exp -
-                    e.dailyExp}</font> ==(<font color="${COLOR_VALUE}">${Math.floor(
+                    BigInt(
+                        e.dailyExp
+                    )}</font> ==(<font color="${COLOR_VALUE}">${Math.floor(
                     e.dailyExpMax * SOFT_CAP_MOD_START
                 )}</font>[<font color="${COLOR_VALUE}">${
                     e.dailyExpMax

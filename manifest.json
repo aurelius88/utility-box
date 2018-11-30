@@ -1,6 +1,6 @@
 {
     "files": {
-        "index.js": "74eee957afd7e0bb96489b3adaa9a192cfaee1fdfc90ed653a2bff34e8f180aa",
+        "index.js": "18b574b0f36fb10d38dd0ea7627ce1009932d1f07935df72b34baac1be706654",
         "module.json": "9cb2a878d5893e247ce1a750b3a2b44156c027b2dc960de51269fb5cfd5095ba",
         "lib/file-helper.js": "5709398cee4c7b35026539c409208e9b48d7a2395dcaf3abcabf163a7455388b",
         "lib/hook-manager.js": "017cc9e325e11cafcee49e55e488dc2296ec5bcde9de71c65cab9a3369042c6f",
