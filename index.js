@@ -1,8 +1,7 @@
-
-const bunyan = require('bunyan');
-const path = require( 'path' );
-const fs = require( 'fs' );
-const HookManager = require( './lib/hook-manager' );
+const bunyan = require("bunyan");
+const path = require("path");
+const fs = require("fs");
+const HookManager = require("./lib/hook-manager");
 
 const COLOR_ENABLE = "#56B4E9";
 const COLOR_DISABLE = "#e64500";
@@ -10,51 +9,57 @@ const COLOR_COMMAND = "#e6a321";
 const COLOR_VALUE = "#09d1d1";
 const COLOR_HIGHLIGHT = "#81ee7b";
 const SOFT_CAP_MOD_START = 0.88945;
+const SOFT_CAP_MOD_END = SOFT_CAP_MOD_START + 0.2;
 
-function getJsonData( pathToFile ) {
+function getJsonData(pathToFile) {
     try {
-        return JSON.parse( fs.readFileSync( path.join( __dirname, pathToFile ) ) );
-    } catch ( e ) {
+        return JSON.parse(fs.readFileSync(path.join(__dirname, pathToFile)));
+    } catch (e) {
         return undefined;
     }
 }
 
-function saveJsonData( pathToFile, data ) {
-    fs.writeFileSync( path.join( __dirname, pathToFile ), JSON.stringify( data, null, 4 ) );
+function saveJsonData(pathToFile, data) {
+    fs.writeFileSync(
+        path.join(__dirname, pathToFile),
+        JSON.stringify(data, null, 4)
+    );
 }
 
 function readOpcodes(rawFile, jsonFile, map) {
     let data = getJsonData(jsonFile);
     let newData = Array.from(readOpcodesRaw(rawFile));
-    if(!data) data = newData;
+    if (!data) data = newData;
     else data.concat(newData);
-    if(map) {
-        data.map(x => map.set(x[0],x[1]));
+    if (map) {
+        data.map(x => map.set(x[0], x[1]));
     } else {
         map = new Map(data);
     }
     return map;
 }
 
-function readOpcodesRaw( pathToFile ) {
+function readOpcodesRaw(pathToFile) {
     let map = new Map();
-    let lines = fs.readFileSync(path.join(__dirname, pathToFile), 'utf8').split(/\s*\r?\n\s*/);
+    let lines = fs
+        .readFileSync(path.join(__dirname, pathToFile), "utf8")
+        .split(/\s*\r?\n\s*/);
     // init OPCODE_MAP
-    for(let line of lines) {
+    for (let line of lines) {
         let divided = line.split(/\s*=\s*|\s*\s\s*/);
-        if(divided.length >= 2) {
-            map.set(parseInt(divided[1],10), divided[0]);
+        if (divided.length >= 2) {
+            map.set(parseInt(divided[1], 10), divided[0]);
         }
     }
     return map;
 }
 
-function groupOpcodes( map ) {
+function groupOpcodes(map) {
     let groupedMap = new Map();
-    for(let e of map) {
-        let divisionPos = e[1].indexOf('_');
+    for (let e of map) {
+        let divisionPos = e[1].indexOf("_");
         let group = e[1].slice(0, divisionPos);
-        if(groupedMap.has(group)) {
+        if (groupedMap.has(group)) {
             groupedMap.get(group).push(e[0]);
         } else {
             groupedMap.set(group, [e[0]]);
@@ -63,19 +68,17 @@ function groupOpcodes( map ) {
     return groupedMap;
 }
 
-module.exports = function utilityBox( dispatch ) {
-    dispatch.game.initialize( [ "me", "contract" ] );
+module.exports = function utilityBox(dispatch) {
+    dispatch.game.initialize(["me", "contract"]);
     const ROOT_COMMAND = "util";
     const POSITIONS_FILE_NAME = "positions.json";
-    const OPCODES_PATH = path.join(__dirname,"opcodes");
-    const GENERAL_LOG_PATH = path.join(__dirname,"logs");
+    const OPCODES_PATH = path.join(__dirname, "opcodes");
+    const GENERAL_LOG_PATH = path.join(__dirname, "logs");
     const command = dispatch.command;
-    const hookManager = new HookManager( dispatch );
+    const hookManager = new HookManager(dispatch);
     const logger = {};
-    if(!fs.existsSync(OPCODES_PATH))
-        fs.mkdirSync(OPCODES_PATH);
-    if(!fs.existsSync(GENERAL_LOG_PATH))
-        fs.mkdirSync(GENERAL_LOG_PATH);
+    if (!fs.existsSync(OPCODES_PATH)) fs.mkdirSync(OPCODES_PATH);
+    if (!fs.existsSync(GENERAL_LOG_PATH)) fs.mkdirSync(GENERAL_LOG_PATH);
 
     let gameId = null,
         scanning = false,
@@ -84,13 +87,13 @@ module.exports = function utilityBox( dispatch ) {
         verbose = false,
         version = dispatch.base.protocolVersion;
 
-    const POSITIONS_DATA = getJsonData( POSITIONS_FILE_NAME );
-    if ( Array.isArray( POSITIONS_DATA ) ) {
-        positions = new Map( POSITIONS_DATA );
+    const POSITIONS_DATA = getJsonData(POSITIONS_FILE_NAME);
+    if (Array.isArray(POSITIONS_DATA)) {
+        positions = new Map(POSITIONS_DATA);
     }
     const OPCODE_JSON = "opcodes.json";
     const GROUPED_OPCODE_JSON = "groups.json";
-    let OPCODE_FILE_NAME,OPCODE_MAP,GROUPED_OPCODE_MAP;
+    let OPCODE_FILE_NAME, OPCODE_MAP, GROUPED_OPCODE_MAP;
 
     OPCODE_FILE_NAME = `../../../node_modules/tera-data/map_base/protocol.${version}.map`;
     OPCODE_MAP = dispatch.base.protocolMap.code; // opcode -> name
@@ -99,24 +102,22 @@ module.exports = function utilityBox( dispatch ) {
     //saveJsonData(OPCODE_JSON, Array.from(OPCODE_MAP));
     //saveJsonData(GROUPED_OPCODE_JSON, Array.from(GROUPED_OPCODE_MAP));
 
-
-
     initHooks();
     initFixHooks();
 
     hookManager.hookGroup("player-ep");
 
-    dispatch.game.on( "enter_game", () => {
+    dispatch.game.on("enter_game", () => {
         gameId = dispatch.game.me.gameId;
-    } );
+    });
 
     // dispatch.game.on( 'leave_game', () => {
     // } );
 
     process.on("exit", () => {
         let posData = [];
-        positions.forEach( ( v, k ) => posData.push( [ k, v ] ) );
-        saveJsonData( POSITIONS_FILE_NAME, posData );
+        positions.forEach((v, k) => posData.push([k, v]));
+        saveJsonData(POSITIONS_FILE_NAME, posData);
         stopScanning();
     });
 
@@ -145,108 +146,115 @@ module.exports = function utilityBox( dispatch ) {
         },
         hook: {
             add: {
-                $default: function(group, hookName, version, ...vars ) {
-                    if(arguments.length < 4) return printHelpList(this.hook.add);
-                    if(typeof version == "string" && !/raw|\*|[0-9]+/.test(version)) {
-                        return printMessage(`Illegal version "<font color "${COLOR_HIGHLIGHT}">${version}</font>". Should be "<font color "${COLOR_HIGHLIGHT}">*</font>", "<font color "${COLOR_HIGHLIGHT}">raw</font>" or a positive integer number <font color "${COLOR_HIGHLIGHT}">0,1,2,...</font>.`);
+                $default: function(group, hookName, version, ...vars) {
+                    if (arguments.length < 4)
+                        return printHelpList(this.hook.add);
+                    if (
+                        typeof version == "string" &&
+                        !/raw|\*|[0-9]+/.test(version)
+                    ) {
+                        return printMessage(
+                            `Illegal version "<font color "${COLOR_HIGHLIGHT}">${version}</font>". Should be "<font color "${COLOR_HIGHLIGHT}">*</font>", "<font color "${COLOR_HIGHLIGHT}">raw</font>" or a positive integer number <font color "${COLOR_HIGHLIGHT}">0,1,2,...</font>.`
+                        );
                     }
-                    if(!Array.from(OPCODE_MAP.values()).includes(hookName)) return printMessage(`There is no hook named "<font color="${COLOR_HIGHLIGHT}">${hookName}</font>".`);
+                    if (!Array.from(OPCODE_MAP.values()).includes(hookName))
+                        return printMessage(
+                            `There is no hook named "<font color="${COLOR_HIGHLIGHT}">${hookName}</font>".`
+                        );
 
-                    printMessage(`group:${group}, name: ${hookName}, version: ${version}, vars: ${JSON.stringify(vars)}`);
+                    printMessage(
+                        `group:${group}, name: ${hookName}, version: ${version}, vars: ${JSON.stringify(
+                            vars
+                        )}`
+                    );
 
-                    let result = hookManager.addTemplate(group, hookName, version, e => { // used in eval
-                        for(let v of vars) {
-                            printMessage( v + " = " + JSON.stringify(eval("e."+v)));
+                    let result = hookManager.addTemplate(
+                        group,
+                        hookName,
+                        version,
+                        e => {
+                            // used in eval
+                            for (let v of vars) {
+                                printMessage(
+                                    v + " = " + JSON.stringify(eval("e." + v))
+                                );
+                            }
                         }
-                    });
-                    if(!result.group) {
+                    );
+                    if (!result.group) {
                         printMessage("Hook does already exist.");
                     }
                 }
             },
             remove: {
-                id: function( group, id ) {
-                    if(hookManager.removeTemplateAt( group, id )) {
-                        printMessage(`Template id <font color="${COLOR_VALUE}">${id}</font> in <font color="${COLOR_VALUE}">${group}</font> successfully removed.`);
+                id: function(group, id) {
+                    if (hookManager.removeTemplateAt(group, id)) {
+                        printMessage(
+                            `Template id <font color="${COLOR_VALUE}">${id}</font> in <font color="${COLOR_VALUE}">${group}</font> successfully removed.`
+                        );
                     } else {
-                        printMessage(`Could not remove template id <font color="${COLOR_VALUE}">${id}</font> in <font color="${COLOR_VALUE}">${group}</font>. Check if group and id are correct.`);
+                        printMessage(
+                            `Could not remove template id <font color="${COLOR_VALUE}">${id}</font> in <font color="${COLOR_VALUE}">${group}</font>. Check if group and id are correct.`
+                        );
                     }
                 },
                 $default: function(name, group) {
-                    if(!name) printHelpList(this.hook.remove);
-                    if(hookManager.removeTempletByName(name, group)) {
-                        printMessage(`Template named <font color="${COLOR_VALUE}">${name}</font> ${group ? `in <font color="${COLOR_VALUE}">${group}</font> ` : ""}successfully removed.`);
+                    if (!name) printHelpList(this.hook.remove);
+                    if (hookManager.removeTempletByName(name, group)) {
+                        printMessage(
+                            `Template named <font color="${COLOR_VALUE}">${name}</font> ${
+                                group
+                                    ? `in <font color="${COLOR_VALUE}">${group}</font> `
+                                    : ""
+                            }successfully removed.`
+                        );
                     }
                 }
             },
-            $default() { printHelpList(this.hook); }
+            $default() {
+                printHelpList(this.hook);
+            }
         },
         scan: {
             raw: {
                 $default: function(opcode) {
-                    if(!opcode) rawScan();
-                    else {
-                        let result = hookManager.hook("raw-opcode"+opcode, "*", "raw", (code, data, fromServer, fake) => {
-                            if(code === parseInt(opcode)) {
-                                let left = fake && fromServer ? "P" : "S";
-                                let arrow = fromServer ? "->" : "<-";
-                                let right = fake && !fromServer ? "P" : "C";
-                                printMessage(`${left} ${arrow} ${right} ${code}`);
-                                if(!logger[opcode]) {
-                                    logger[opcode] = bunyan.createLogger({
-                                        name: "opcode",
-                                        streams: [{
-                                            path: path.join(OPCODES_PATH, opcode + ".log"),
-                                            level: "debug"
-                                        }]
-                                    });
-                                }
-                                logger[opcode].debug(data.toString("hex"));
-                            }
-                        });
-                        let msg = "";
-                        if(!result.hook) {
-                            delete logger[opcode];
-                            hookManager.unhookGroup("raw-opcode"+opcode);
-                            msg = `<font color="${COLOR_DISABLE}">Stop</font>`;
-                        } else { msg = `<font color="${COLOR_ENABLE}">Start</font>`; }
-                        printMessage(`${msg} scanning for <font color="${COLOR_VALUE}">${opcode}</font>.`);
-                    }
+                    if (!opcode) rawScan();
+                    else scanOpcode(opcode);
                 }
             },
             verbose: {
                 $default: switchVerbose
             },
-            $default: function ( ...groupNameParts ) {
-                if ( !groupNameParts || !groupNameParts.length ) switchScanning();
+            $default: function(...groupNameParts) {
+                if (!groupNameParts || !groupNameParts.length) switchScanning();
                 else switchGroup(groupNameParts);
             }
         },
         pos: {
             save: {
-                $default( ...nameParts ) {
-                    if ( !nameParts || !nameParts.length )
-                        return printHelpList( this.pos.save );
+                $default(...nameParts) {
+                    if (!nameParts || !nameParts.length)
+                        return printHelpList(this.pos.save);
                     let name = "";
-                    for ( let i = 0; i < nameParts.length; i++ ) {
-                        name += nameParts[ i ];
-                        if ( i < nameParts.length - 1 ) name += " ";
+                    for (let i = 0; i < nameParts.length; i++) {
+                        name += nameParts[i];
+                        if (i < nameParts.length - 1) name += " ";
                     }
-                    let illegalCommandIndex = illegalPosCommands.indexOf(
-                        name );
-                    if ( illegalCommandIndex > -1 ) {
+                    let illegalCommandIndex = illegalPosCommands.indexOf(name);
+                    if (illegalCommandIndex > -1) {
                         let illegalCommands = "";
-                        for ( let i = 0; i < illegalPosCommands.length; i++ ) {
-                            illegalCommands += illegalPosCommands[
-                                i ];
-                            if ( i < illegalPosCommands.length - 1 )
+                        for (let i = 0; i < illegalPosCommands.length; i++) {
+                            illegalCommands += illegalPosCommands[i];
+                            if (i < illegalPosCommands.length - 1)
                                 illegalCommands += ", ";
                         }
                         printMessage(
-                            `Position named "<font color="${COLOR_HIGHLIGHT}">${illegalCommands[illegalCommandIndex]}</font>", but you cannot name your position to one of these:<font color="${COLOR_HIGHLIGHT}"> ${illegalCommands}</font>. Please choose another name.`
+                            `Position named "<font color="${COLOR_HIGHLIGHT}">${
+                                illegalCommands[illegalCommandIndex]
+                            }</font>", but you cannot name your position to one of these:<font color="${COLOR_HIGHLIGHT}"> ${illegalCommands}</font>. Please choose another name.`
                         );
                     } else {
-                        savePosition( name );
+                        savePosition(name);
                     }
                 }
             },
@@ -254,15 +262,15 @@ module.exports = function utilityBox( dispatch ) {
                 $default: printPositions
             },
             delete: {
-                $default( ...nameParts ) {
-                    if ( !nameParts || !nameParts.length ) return printHelpList(
-                        this.pos.delete );
+                $default(...nameParts) {
+                    if (!nameParts || !nameParts.length)
+                        return printHelpList(this.pos.delete);
                     let name = "";
-                    for ( let i = 0; i < nameParts.length; i++ ) {
-                        name += nameParts[ i ];
-                        if ( i < nameParts.length - 1 ) name += " ";
+                    for (let i = 0; i < nameParts.length; i++) {
+                        name += nameParts[i];
+                        if (i < nameParts.length - 1) name += " ";
                     }
-                    if ( positions.delete( name ) ) {
+                    if (positions.delete(name)) {
                         printMessage(
                             `Position "<font colot="${COLOR_HIGHLIGHT}">${name}</font>" deleted.`
                         );
@@ -277,9 +285,8 @@ module.exports = function utilityBox( dispatch ) {
                 $default: positions.clear
             },
             $default() {
-                if ( lastLocation.loc !== undefined ) {
-                    printMessage(
-                        `Current Position:  ${lastLocation.loc}` );
+                if (lastLocation.loc !== undefined) {
+                    printMessage(`Current Position:  ${lastLocation.loc}`);
                 } else {
                     printMessage(
                         "No position, yet. Please move one step or jump to get your position. And try it again."
@@ -288,10 +295,10 @@ module.exports = function utilityBox( dispatch ) {
             }
         },
         use: {
-            $default( arg ) {
-                if ( arg !== undefined ) {
-                    printMessage( `arg1 type: ${typeof arg1}` );
-                    useItem( arg );
+            $default(arg) {
+                if (arg !== undefined) {
+                    printMessage(`arg1 type: ${typeof arg1}`);
+                    useItem(arg);
                 } else {
                     printMessage(
                         `Missing item id. e.g.: ${ROOT_COMMAND} use 200999`
@@ -299,22 +306,26 @@ module.exports = function utilityBox( dispatch ) {
                 }
             }
         },
-        $default() { printHelpList(); }
+        $default() {
+            printHelpList();
+        }
     };
 
-    function printHelpList( cmds = commands ) {
-        printMessage( cmds.help.long() );
-        printMessage( "subcommands:" );
-        for ( let c in cmds ) {
-            if ( c != "$default" ) {
+    function printHelpList(cmds = commands) {
+        printMessage(cmds.help.long());
+        printMessage("subcommands:");
+        for (let c in cmds) {
+            if (c != "$default") {
                 printMessage(
-                    `<font color="${COLOR_HIGHLIGHT}">${c}</font>  -  ${cmds[c].help.short()}`
+                    `<font color="${COLOR_HIGHLIGHT}">${c}</font>  -  ${cmds[
+                        c
+                    ].help.short()}`
                 );
             }
         }
     }
     // initialize HELP
-    function helpObject( cmd, short, long ) {
+    function helpObject(cmd, short, long) {
         return {
             short() {
                 return short;
@@ -331,263 +342,343 @@ module.exports = function utilityBox( dispatch ) {
                 }
             },
             $default() {
-                printHelpList( cmd );
+                printHelpList(cmd);
             }
         };
     }
 
-    commands.hook.add.help = helpObject( commands.hook.add,
+    commands.hook.add.help = helpObject(
+        commands.hook.add,
         `Adds a hook template that can be activated with "scan".`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook add</font> <font color="${COLOR_VALUE}">group hook-name version variables</font>\nWhere...\n<font color="${COLOR_VALUE}">group</font> is the name of the group the hook should be assigned to.\n<font color="${COLOR_VALUE}">hook-name</font> is the name of the hook packet such as "S_CHAT".\n<font color="${COLOR_VALUE}">version</font> is the version of the packet. Should be an integer. Can also be "*" for the latest version or "raw" to create a raw hook.\n<font color="${COLOR_VALUE}">vars</font> are the variables of the packet that should be printed. Each variable name is seperated by a whitespace. There should be at least 1 variable.`
     );
 
-    commands.hook.remove.help = helpObject( commands.hook.remove,
+    commands.hook.remove.help = helpObject(
+        commands.hook.remove,
         `Removes all hook templates with the specified hook name.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook remove</font> <font color="${COLOR_VALUE}">hook-name group</font>\nWhere...\n<font color="${COLOR_VALUE}">group</font> is the name of the group that contains the hook. (optional)\n<font color="${COLOR_VALUE}">hook-name</font> is the name of the hook packet such as "S_CHAT".`
     );
 
-    commands.hook.remove.id.help = helpObject( commands.hook.remove.id,
+    commands.hook.remove.id.help = helpObject(
+        commands.hook.remove.id,
         `Removes a hook template by using the id.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook remove id</font> <font color="${COLOR_VALUE}">group id</font>\nWhere...\n<font color="${COLOR_VALUE}">group</font> is the name of the group the hook should be assigned to.\n<font color="${COLOR_VALUE}">id</font> is the id of the hook inside the group (retrieved by <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list templates</font> with <font color="${COLOR_VALUE}">group</font> as argument).`
     );
 
-    commands.hook.help = helpObject( commands.hook,
+    commands.hook.help = helpObject(
+        commands.hook,
         `Adding or removing hooks in runtime for test purposes.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook</font>`
     );
 
-    commands.scan.raw.help = helpObject( commands.scan.raw,
+    commands.scan.raw.help = helpObject(
+        commands.scan.raw,
         `Scans for unknown packets.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} scan raw</font>`
     );
 
-    commands.scan.verbose.help = helpObject( commands.scan.verbose,
+    commands.scan.verbose.help = helpObject(
+        commands.scan.verbose,
         `Enables/Disables verbose mode.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} scan verbose</font>`
     );
 
-    commands.list.help = helpObject( commands.list,
+    commands.list.help = helpObject(
+        commands.list,
         `Lists active groups or all available groups (default).`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list</font>`
     );
 
-    commands.list.active.help = helpObject( commands.list.active,
+    commands.list.active.help = helpObject(
+        commands.list.active,
         `Lists active groups.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list active</font>`
     );
 
-    commands.list.opcodes.help = helpObject( commands.list.opcodes,
+    commands.list.opcodes.help = helpObject(
+        commands.list.opcodes,
         `Lists all opcodes with there corresponding names.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list opcodes</font>`
     );
 
-    commands.list.templates.help = helpObject( commands.list.templates,
+    commands.list.templates.help = helpObject(
+        commands.list.templates,
         `Lists all opcodes with there corresponding names.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list opcodes</font>`
     );
 
-    commands.scan.help = helpObject( commands.scan,
+    commands.scan.help = helpObject(
+        commands.scan,
         `Tool for enabling/disabling hooks and output messages. By default enables/disables all hooks or enables/disables a specific group of hooks by a given group name.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} scan</font> <font color="${COLOR_VALUE}">[group-name]</font>\nWhere <font color="${COLOR_VALUE}">[group-name]</font> is the specific name of the hook group which should be enabled/disabled.`
     );
 
-    commands.pos.save.help = helpObject( commands.pos.save,
+    commands.pos.save.help = helpObject(
+        commands.pos.save,
         `Saves the current position with a name.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} pos save</font> <font color="${COLOR_VALUE}">position-name</font>`
     );
 
-    commands.pos.list.help = helpObject( commands.pos.list,
+    commands.pos.list.help = helpObject(
+        commands.pos.list,
         `Lists all stored positions.`,
         `USAGE <font color="${COLOR_COMMAND}">${ROOT_COMMAND} pos list</font>`
     );
 
-    commands.pos.delete.help = helpObject( commands.pos.delete,
+    commands.pos.delete.help = helpObject(
+        commands.pos.delete,
         `Deletes a specified position.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} pos delete</font> <font color="${COLOR_VALUE}">position-name</font>`
     );
 
-    commands.pos.reset.help = helpObject( commands.pos.reset,
+    commands.pos.reset.help = helpObject(
+        commands.pos.reset,
         `Resets the list of stored positions.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} pos reset</font>`
     );
 
-    commands.pos.help = helpObject( commands.pos,
+    commands.pos.help = helpObject(
+        commands.pos,
         `A tool to store and print positions. Prints current position by default.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} pos</font>`
     );
 
-    commands.use.help = helpObject( commands.use,
+    commands.use.help = helpObject(
+        commands.use,
         `Uses an item by a specified item id.`,
         `USAGE <font color="${COLOR_COMMAND}">${ROOT_COMMAND} use</font> <font color="${COLOR_VALUE}">item-id</font>`
     );
 
-    commands.help = helpObject( commands,
+    commands.help = helpObject(
+        commands,
         `Utilities for analysing packets with filtering functionality.`,
         `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND}</font>\nUtilities for analysing packets with filtering functionality.`
     );
 
     // init illegalPosCommands
-    for ( let command in commands.pos ) {
-        illegalPosCommands.push( command );
+    for (let command in commands.pos) {
+        illegalPosCommands.push(command);
     }
 
-    command.add( ROOT_COMMAND, commands, commands );
+    command.add(ROOT_COMMAND, commands, commands);
 
     let scannedCodes;
+
     function rawScan() {
         scannedCodes = [];
-        let result = hookManager.hook("raw", "*", "raw", (code, data, fromServer, fake) => {
-            if(!scannedCodes.includes(code)) {
-                printMessage(`${code}(${typeof code}) -> ${OPCODE_MAP.get(code)}`);
-                scannedCodes.push(code);
+        let result = hookManager.hook(
+            "raw",
+            "*",
+            "raw",
+            (code, data, fromServer, fake) => {
+                if (!scannedCodes.includes(code)) {
+                    printMessage(
+                        `${code}(${typeof code}) -> ${OPCODE_MAP.get(code)}`
+                    );
+                    scannedCodes.push(code);
+                }
             }
-        });
+        );
         let msg = "Scan raw packets ";
-        if(!result.hook) {
+        if (!result.hook) {
             hookManager.unhookGroup("raw");
             msg += `<font color="${COLOR_DISABLE}">disabled</font>.`;
-        } else { msg += `<font color="${COLOR_ENABLE}">enabled</font>.`; }
+        } else {
+            msg += `<font color="${COLOR_ENABLE}">enabled</font>.`;
+        }
         printMessage(msg);
     }
 
+    function scanOpcode(opcode) {
+        let result = hookManager.hook(
+            "raw-opcode" + opcode,
+            "*",
+            "raw",
+            (code, data, fromServer, fake) => {
+                if (code === parseInt(opcode)) {
+                    let left = fake && fromServer ? "P" : "S";
+                    let arrow = fromServer ? "->" : "<-";
+                    let right = fake && !fromServer ? "P" : "C";
+                    printMessage(`${left} ${arrow} ${right} ${code}`);
+                    if (!logger[opcode]) {
+                        logger[opcode] = bunyan.createLogger({
+                            name: "opcode",
+                            streams: [
+                                {
+                                    path: path.join(
+                                        OPCODES_PATH,
+                                        opcode + ".log"
+                                    ),
+                                    level: "debug"
+                                }
+                            ]
+                        });
+                    }
+                    logger[opcode].debug(data.toString("hex"));
+                }
+            }
+        );
+        let msg = "";
+        if (!result.hook) {
+            delete logger[opcode];
+            hookManager.unhookGroup("raw-opcode" + opcode);
+            msg = `<font color="${COLOR_DISABLE}">Stop</font>`;
+        } else {
+            msg = `<font color="${COLOR_ENABLE}">Start</font>`;
+        }
+        printMessage(
+            `${msg} scanning for <font color="${COLOR_VALUE}">${opcode}</font>.`
+        );
+    }
+
     /**
-    * @args groupNameParts
-    * @returns true, if successful. Otherwise false.
-    */
-    function switchGroup( groupNameParts ) {
-        if ( !groupNameParts || !groupNameParts.length ) return false;
+     * @args groupNameParts
+     * @returns true, if successful. Otherwise false.
+     */
+    function switchGroup(groupNameParts) {
+        if (!groupNameParts || !groupNameParts.length) return false;
         let groupName = "";
-        for ( let i = 0; i < groupNameParts.length; i++ ) {
-            groupName += groupNameParts[ i ];
-            if ( i < groupNameParts.length - 1 )
-                groupName += " ";
+        for (let i = 0; i < groupNameParts.length; i++) {
+            groupName += groupNameParts[i];
+            if (i < groupNameParts.length - 1) groupName += " ";
         }
-        if ( groupName == "" ) {
+        if (groupName == "") {
             printMessage("Please enter a group name.");
-            printMessage( this.scan.help.long() );
+            printMessage(this.scan.help.long());
             return false;
         }
-        if ( !hookManager.hasGroup( groupName ) ) {
-            printMessage( "There is no group named " +
-                groupName );
+        if (!hookManager.hasGroup(groupName)) {
+            printMessage("There is no group named " + groupName);
             return false;
         }
-        let isActive = hookManager.hasActiveGroup(
-            groupName );
-        if ( isActive )
-            hookManager.unhookGroup( groupName );
-        else
-            hookManager.hookGroup( groupName );
-        printMessage( groupName + ( !isActive ?
-            ` <font color="${COLOR_ENABLE}">enabled</font>.` :
-            ` <font color="${COLOR_DISABLE}">disabled</font>.`
-        ) );
+        let isActive = hookManager.hasActiveGroup(groupName);
+        if (isActive) hookManager.unhookGroup(groupName);
+        else hookManager.hookGroup(groupName);
+        printMessage(
+            groupName +
+                (!isActive
+                    ? ` <font color="${COLOR_ENABLE}">enabled</font>.`
+                    : ` <font color="${COLOR_DISABLE}">disabled</font>.`)
+        );
         return true;
     }
 
     function switchScanning() {
         scanning = !scanning;
-        if ( scanning ) startScanning();
+        if (scanning) startScanning();
         else stopScanning();
     }
 
     function switchVerbose() {
         verbose = !verbose;
-        printMessage( 'Verbose mode ' + ( verbose ?
-            '<font color="#56B4E9">enabled</font>.' :
-            '<font color="#E69F00">disabled</font>.' ) );
+        printMessage(
+            "Verbose mode " +
+                (verbose
+                    ? '<font color="#56B4E9">enabled</font>.'
+                    : '<font color="#E69F00">disabled</font>.')
+        );
     }
 
-    function savePosition( name ) {
-        if ( positions.has( name ) ) {
+    function savePosition(name) {
+        if (positions.has(name)) {
             printMessage(
                 "There is already a position saved with this name. Choose another name."
             );
             return false;
         }
         let pos = lastLocation.loc;
-        positions.set( name, pos );
-        printMessage(
-            `Position "${JSON.stringify(pos)}" saved as "${name}".` );
+        positions.set(name, pos);
+        printMessage(`Position "${JSON.stringify(pos)}" saved as "${name}".`);
         return true;
     }
 
-    function printPosition( value, key ) {
-        printMessage( `"${key}": ${JSON.stringify(value)}` );
+    function printPosition(value, key) {
+        printMessage(`"${key}": ${JSON.stringify(value)}`);
     }
 
     function printPositions() {
-        printMessage( positions.size + " positions saved:" );
-        positions.forEach( printPosition );
+        printMessage(positions.size + " positions saved:");
+        positions.forEach(printPosition);
     }
 
     function printGroups() {
-        printMessage( "Available hook groups:" );
-        for ( let group of hookManager.getHookTemplates().keys() ) {
-            printMessage( group );
+        printMessage("Available hook groups:");
+        for (let group of hookManager.getHookTemplates().keys()) {
+            printMessage(group);
         }
     }
 
-    function printTemplates( group ) {
-        if(group) {
-            if(!hookManager.hasGroup(group)) {
-                printMessage(`There is no such group <font color="${COLOR_VALUE}">${group}</font>.`);
+    function printTemplates(group) {
+        if (group) {
+            if (!hookManager.hasGroup(group)) {
+                printMessage(
+                    `There is no such group <font color="${COLOR_VALUE}">${group}</font>.`
+                );
             }
-            printMessage(`Templates of group <font color="${COLOR_HIGHLIGHT}">${group}</font>:`);
+            printMessage(
+                `Templates of group <font color="${COLOR_HIGHLIGHT}">${group}</font>:`
+            );
             let groupTemps = hookManager.getHookTemplates().get(group);
-            for( let i = 0; i < groupTemps.length; i++ ) {
-                printMessage( `${i}: ${JSON.stringify(groupTemps[i][0])}` );
+            for (let i = 0; i < groupTemps.length; i++) {
+                printMessage(`${i}: ${JSON.stringify(groupTemps[i][0])}`);
             }
         } else {
-            for(let g of hookManager.getHookTemplates().keys()) {
+            for (let g of hookManager.getHookTemplates().keys()) {
                 printTemplates(g);
             }
         }
     }
 
     function printActiveGroups() {
-        printMessage( "Active hook groups:" );
-        for ( let group of hookManager.getActiveHooks().keys() ) {
-            if ( hookManager.activeHooks.get( group ).length ) {
-                printMessage( group );
+        printMessage("Active hook groups:");
+        for (let group of hookManager.getActiveHooks().keys()) {
+            if (hookManager.activeHooks.get(group).length) {
+                printMessage(group);
             }
         }
     }
 
     function printOpcodes() {
-        printMessage( "Opcodes:" );
+        printMessage("Opcodes:");
         let s = "";
         let size = OPCODE_MAP.size;
         let i = 0;
         for (let name of OPCODE_MAP.values()) {
             s += name;
-            if(i < size -1) s+= ", ";
+            if (i < size - 1) s += ", ";
             i++;
         }
         printMessage(s);
     }
 
     function initHooks() {
-        for(let item of GROUPED_OPCODE_MAP) {
-            hookManager.addTemplate(item[0], OPCODE_MAP.get(item[1]), "*", e => { printMessage(JSON.stringify(e)); } );
+        for (let item of GROUPED_OPCODE_MAP) {
+            hookManager.addTemplate(
+                item[0],
+                OPCODE_MAP.get(item[1]),
+                "*",
+                e => {
+                    printMessage(JSON.stringify(e));
+                }
+            );
         }
     }
 
     function startScanning() {
         hookManager.hookAll();
         scanning = true;
-        printMessage( 'All hooks started.' );
+        printMessage("All hooks started.");
     }
 
     function stopScanning() {
         hookManager.unhookAll();
         scanning = false;
-        printMessage( 'All hooks stopped.' );
+        printMessage("All hooks stopped.");
     }
 
-    function useItem( item ) {
-        printMessage( `USE ITEM: ${item}` );
-        dispatch.toServer( 'C_USE_ITEM', 3, {
+    function useItem(item) {
+        printMessage(`USE ITEM: ${item}`);
+        dispatch.toServer("C_USE_ITEM", 3, {
             gameId: gameId,
             id: item,
             dbid: 0,
@@ -600,7 +691,7 @@ module.exports = function utilityBox( dispatch ) {
             unk2: 0,
             unk3: 0,
             unk4: 1
-        } );
+        });
     }
 
     function initFixHooks() {
@@ -620,9 +711,9 @@ module.exports = function utilityBox( dispatch ) {
         bool    inShuttle
         uint32  time # Operating System uptime (ms)
         */
-        hookManager.addTemplate( "movement", 'C_PLAYER_LOCATION', 5, event => {
+        hookManager.addTemplate("movement", "C_PLAYER_LOCATION", 5, event => {
             let typeName = "";
-            switch ( event.type ) {
+            switch (event.type) {
             case 0:
                 typeName = "running";
                 break;
@@ -654,9 +745,13 @@ module.exports = function utilityBox( dispatch ) {
                 typeName = "Unknown: " + event.type;
             }
             lastLocation = event;
-            if ( verbose ) printMessage(
-                `${typeName} (${msToUTCTimeString(event.time)}) => ${event.loc}` );
-        } );
+            if (verbose)
+                printMessage(
+                    `${typeName} (${msToUTCTimeString(event.time)}) => ${
+                        event.loc
+                    }`
+                );
+        });
         /*
         uint64 gameId
         int32  id
@@ -671,39 +766,43 @@ module.exports = function utilityBox( dispatch ) {
         uint32 unk3
         bool   unk4  # true?
         */
-        hookManager.addTemplate( "item", 'C_USE_ITEM', 3, event => {
-            printMessage( ":::::USE ITEM:::::" );
-            printMessage( "GameId: " + event.gameId );
-            printMessage( "ID: " + event.id );
-            printMessage( "DBID: " + event.dbid );
-            printMessage( "Target: " + event.target );
-            printMessage( "Amount: " + event.amount );
-            printMessage( "dest: " + JSON.stringify( event.dest ) );
-            printMessage( "loc: " + JSON.stringify( event.loc ) );
-            printMessage( "angle: " + event.w );
-            printMessage( "unk1: " + event.unk1 );
-            printMessage( "unk2: " + event.unk2 );
-            printMessage( "unk3: " + event.unk3 );
-            printMessage( "unk4: " + event.unk4 );
-            printMessage( "::::::::::::::::::" );
-        } );
+        hookManager.addTemplate("item", "C_USE_ITEM", 3, event => {
+            printMessage(":::::USE ITEM:::::");
+            printMessage("GameId: " + event.gameId);
+            printMessage("ID: " + event.id);
+            printMessage("DBID: " + event.dbid);
+            printMessage("Target: " + event.target);
+            printMessage("Amount: " + event.amount);
+            printMessage("dest: " + JSON.stringify(event.dest));
+            printMessage("loc: " + JSON.stringify(event.loc));
+            printMessage("angle: " + event.w);
+            printMessage("unk1: " + event.unk1);
+            printMessage("unk2: " + event.unk2);
+            printMessage("unk3: " + event.unk3);
+            printMessage("unk4: " + event.unk4);
+            printMessage("::::::::::::::::::");
+        });
         //uint32 countdown # 10
-        hookManager.addTemplate( "logout", 'S_PREPARE_EXIT', 1, event => {
-            printMessage(
-                `PREPARE EXIT countdown: ${event.countdown}s` );
-        } );
+        hookManager.addTemplate("logout", "S_PREPARE_EXIT", 1, event => {
+            printMessage(`PREPARE EXIT countdown: ${event.countdown}s`);
+        });
         //int32 time
-        hookManager.addTemplate( "logout", 'S_PREPARE_RETURN_TO_LOBBY', 1, event => {
-            printMessage( `LOGOUT time: ${event.time}` );
-        } );
+        hookManager.addTemplate(
+            "logout",
+            "S_PREPARE_RETURN_TO_LOBBY",
+            1,
+            event => {
+                printMessage(`LOGOUT time: ${event.time}`);
+            }
+        );
         //# These are sent to the launcher prior to closing the game
         //int32 category
         //int32 code
-        hookManager.addTemplate( "logout", 'S_EXIT', 3, event => {
+        hookManager.addTemplate("logout", "S_EXIT", 3, event => {
             printMessage(
                 `EXIT category: "${event.category}", code: "${event.code}"`
             );
-        } );
+        });
 
         /*
         # elite bar?
@@ -720,25 +819,40 @@ module.exports = function utilityBox( dispatch ) {
         - int32 amount
         - int32 cooldown
         */
-        hookManager.addTemplate( "elite-bar", 'S_PCBANGINVENTORY_DATALIST', 1, event => {
-            let s = "Elite bar:\n[";
-            for ( let item of event.inventory ) {
-                s += item.slot;
-                switch(item.type) {
-                case 1: s += `# item: ${item.item}`; break;
-                case 2: s += `# skill: ${item.skill}`; break;
-                default: s += `# unknown (${item.type})`;
+        hookManager.addTemplate(
+            "elite-bar",
+            "S_PCBANGINVENTORY_DATALIST",
+            1,
+            event => {
+                let s = "Elite bar:\n[";
+                for (let item of event.inventory) {
+                    s += item.slot;
+                    switch (item.type) {
+                    case 1:
+                        s += `# item: ${item.item}`;
+                        break;
+                    case 2:
+                        s += `# skill: ${item.skill}`;
+                        break;
+                    default:
+                        s += `# unknown (${item.type})`;
+                    }
+                    s += ` (count: ${item.amount}, cd: ${item.cooldown})\n`;
                 }
-                s += ` (count: ${item.amount}, cd: ${item.cooldown})\n`;
+                s += "]";
+                printMessage(s);
             }
-            s += "]";
-            printMessage( s );
-        });
+        );
 
         /* int32 slot */
-        hookManager.addTemplate("elite-bar", 'C_PCBANGINVENTORY_USE_SLOT', 1, event => {
-            printMessage("Use elite-bar slot "+event.slot);
-        });
+        hookManager.addTemplate(
+            "elite-bar",
+            "C_PCBANGINVENTORY_USE_SLOT",
+            1,
+            event => {
+                printMessage("Use elite-bar slot " + event.slot);
+            }
+        );
 
         /*
         int32 set
@@ -749,20 +863,30 @@ module.exports = function utilityBox( dispatch ) {
         - int32 item
         - int64 cooldown
         */
-        hookManager.addTemplate("premium", 'S_PREMIUM_SLOT_DATALIST', 1, event => {
-            let s = "Premium bar:\n[";
-            for ( let item of event.inventory ) {
-                s += item.slot;
-                switch(item.type) {
-                case 1: s += `# item: ${item.item}`; break;
-                case 2: s += `# skill: ${item.skill}`; break;
-                default: s += `# unknown (${item.type})`;
+        hookManager.addTemplate(
+            "premium",
+            "S_PREMIUM_SLOT_DATALIST",
+            1,
+            event => {
+                let s = "Premium bar:\n[";
+                for (let item of event.inventory) {
+                    s += item.slot;
+                    switch (item.type) {
+                    case 1:
+                        s += `# item: ${item.item}`;
+                        break;
+                    case 2:
+                        s += `# skill: ${item.skill}`;
+                        break;
+                    default:
+                        s += `# unknown (${item.type})`;
+                    }
+                    s += ` (cd: ${item.cooldown})\n`;
                 }
-                s += ` (cd: ${item.cooldown})\n`;
+                s += "]";
+                printMessage(s);
             }
-            s += "]";
-            printMessage( s );
-        });
+        );
 
         /*
         int32 set
@@ -771,15 +895,25 @@ module.exports = function utilityBox( dispatch ) {
         int32 skill
         int32 item
         */
-        hookManager.addTemplate("premium", 'C_PREMIUM_SLOT_USE_SLOT', 1, event => {
-            let s = `Use premium bar slot ${event.slot} (set:${event.set})`;
-            switch(event.type) {
-            case 1: s += `# item: ${event.item}`; break;
-            case 2: s += `# skill: ${event.skill}`; break;
-            default: s += `# unknown (${event.type})`;
+        hookManager.addTemplate(
+            "premium",
+            "C_PREMIUM_SLOT_USE_SLOT",
+            1,
+            event => {
+                let s = `Use premium bar slot ${event.slot} (set:${event.set})`;
+                switch (event.type) {
+                case 1:
+                    s += `# item: ${event.item}`;
+                    break;
+                case 2:
+                    s += `# skill: ${event.skill}`;
+                    break;
+                default:
+                    s += `# unknown (${event.type})`;
+                }
+                printMessage(s);
             }
-            printMessage(s);
-        });
+        );
         /*
         # majorPatchVersion >= 75
 
@@ -792,9 +926,13 @@ module.exports = function utilityBox( dispatch ) {
         int32 unk2
         int32 unk3 # 0? new
         */
-        hookManager.addTemplate("buff", 'S_ABNORMALITY_BEGIN', 3, e => {
-            if(dispatch.game.me.is(e.target))
-                printMessage(`Buff start: ${e.id} (dur:${e.duration}, stacks:${e.stacks},${e.source}->${e.target})`);
+        hookManager.addTemplate("buff", "S_ABNORMALITY_BEGIN", 3, e => {
+            if (dispatch.game.me.is(e.target))
+                printMessage(
+                    `Buff start: ${e.id} (dur:${e.duration}, stacks:${
+                        e.stacks
+                    },${e.source}->${e.target})`
+                );
         });
 
         /*
@@ -804,17 +942,21 @@ module.exports = function utilityBox( dispatch ) {
         int32  unk
         int32  stacks
         */
-        hookManager.addTemplate("buff", 'S_ABNORMALITY_REFRESH', 1, e => {
-            if(dispatch.game.me.is(e.target))
-                printMessage(`Buff refresh: ${e.id} (dur:${e.duration}, stacks:${e.stacks},->${e.target})`);
+        hookManager.addTemplate("buff", "S_ABNORMALITY_REFRESH", 1, e => {
+            if (dispatch.game.me.is(e.target))
+                printMessage(
+                    `Buff refresh: ${e.id} (dur:${e.duration}, stacks:${
+                        e.stacks
+                    },->${e.target})`
+                );
         });
 
         /*
         uint64 target
         uint32 id
         */
-        hookManager.addTemplate("buff", 'S_ABNORMALITY_END', 1, e => {
-            if(dispatch.game.me.is(e.target))
+        hookManager.addTemplate("buff", "S_ABNORMALITY_END", 1, e => {
+            if (dispatch.game.me.is(e.target))
                 printMessage(`Buff end: ${e.id} (->${e.target})`);
         });
 
@@ -825,9 +967,13 @@ module.exports = function utilityBox( dispatch ) {
         byte unk2
         byte unk3
         */
-        hookManager.addTemplate("buff", 'S_ABNORMALITY_FAIL', 1, e => {
-            if(dispatch.game.me.is(e.target))
-                printMessage(`Buff end: ${e.id} (->${e.target},unk1:${e.unk1},unk2:${e.unk2},unk3:${e.unk3})`);
+        hookManager.addTemplate("buff", "S_ABNORMALITY_FAIL", 1, e => {
+            if (dispatch.game.me.is(e.target))
+                printMessage(
+                    `Buff end: ${e.id} (->${e.target},unk1:${e.unk1},unk2:${
+                        e.unk2
+                    },unk3:${e.unk3})`
+                );
         });
         /*
         offset authorName
@@ -898,13 +1044,17 @@ module.exports = function utilityBox( dispatch ) {
         */
         hookManager.addTemplate("version", "C_CHECK_VERSION", 1, e => {
             printMessage("Versions:");
-            for(let v of e.version) {
-                printMessage(`<font color="${COLOR_VALUE}">${JSON.stringify(v)}</font>`);
+            for (let v of e.version) {
+                printMessage(
+                    `<font color="${COLOR_VALUE}">${JSON.stringify(v)}</font>`
+                );
             }
         });
         /* byte ok */
         hookManager.addTemplate("version", "S_CHECK_VERSION", 1, e => {
-            printMessage(`Version answer: <font color="${COLOR_VALUE}">${e.ok}</font>`);
+            printMessage(
+                `Version answer: <font color="${COLOR_VALUE}">${e.ok}</font>`
+            );
         });
 
         /* int32 id */
@@ -913,9 +1063,14 @@ module.exports = function utilityBox( dispatch ) {
         });
 
         /* int32 id */
-        hookManager.addTemplate("daily", "S_COMPLETE_EVENT_MATCHING_QUEST", 1, e => {
-            printMessage(`Completed: ${e.id}.`);
-        });
+        hookManager.addTemplate(
+            "daily",
+            "S_COMPLETE_EVENT_MATCHING_QUEST",
+            1,
+            e => {
+                printMessage(`Completed: ${e.id}.`);
+            }
+        );
         /*
         int32 expDifference
         uint64 exp
@@ -929,12 +1084,41 @@ module.exports = function utilityBox( dispatch ) {
          */
         hookManager.addTemplate("player-ep", "S_PLAYER_CHANGE_EP", 1, e => {
             let messages = [];
-            messages.push(`LVL: <font color="${COLOR_VALUE}">${e.level}</font>${e.levelUp? " (Level UP!)" : ""}`);
-            messages.push(`EP: <font color="${COLOR_VALUE}">${e.totalPoints}</font>`);
-            messages.push(`XP gained: <font color="${COLOR_VALUE}">${e.expDifference}</font> (<font color="${COLOR_VALUE}">${e.baseRev}</font>, TS=<font color="${COLOR_VALUE}">${e.tsRev}</font>)`);
-            messages.push(`XP: <font color="${COLOR_VALUE}">${e.exp - e.dailyExp}</font> ==( <font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*SOFT_CAP_MOD_START)}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax}</font>] - <font color="${COLOR_VALUE}">${e.dailyExp}</font> = <font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*SOFT_CAP_MOD_START)-e.dailyExp}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax-e.dailyExp}</font>] )==> <font color="${COLOR_VALUE}">${e.exp}</font>`);
+            messages.push(
+                `LVL: <font color="${COLOR_VALUE}">${e.level}</font>${
+                    e.levelUp ? " (Level UP!)" : ""
+                }`
+            );
+            messages.push(
+                `EP: <font color="${COLOR_VALUE}">${e.totalPoints}</font>`
+            );
+            messages.push(
+                `XP gained: <font color="${COLOR_VALUE}">${
+                    e.expDifference
+                }</font> (<font color="${COLOR_VALUE}">${
+                    e.baseRev
+                }</font>, TS=<font color="${COLOR_VALUE}">${e.tsRev}</font>)`
+            );
+            messages.push(
+                `XP: <font color="${COLOR_VALUE}">${e.exp -
+                    e.dailyExp}</font> ==( <font color="${COLOR_VALUE}">${Math.floor(
+                    e.dailyExpMax * SOFT_CAP_MOD_START
+                )}</font> [<font color="${COLOR_VALUE}">${
+                    e.dailyExpMax
+                }</font>] - <font color="${COLOR_VALUE}">${
+                    e.dailyExp
+                }</font> = <font color="${COLOR_VALUE}">${Math.floor(
+                    e.dailyExpMax * SOFT_CAP_MOD_START
+                ) -
+                    e.dailyExp}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax -
+                    e.dailyExp}</font>] )==> <font color="${COLOR_VALUE}">${
+                    e.exp
+                }</font>`
+            );
 
-            messages.map(x => { printMessage(x); });
+            messages.map(x => {
+                printMessage(x);
+            });
             logStringArray("player-ep", messages);
         });
 
@@ -954,17 +1138,42 @@ module.exports = function utilityBox( dispatch ) {
         hookManager.addTemplate("player-ep", "S_LOAD_EP_INFO", 1, e => {
             let messages = [];
             messages.push(`EP-INFO:`);
-            messages.push(`LVL: <font color="${COLOR_VALUE}">${e.level}</font>`);
-            messages.push(`EP: <font color="${COLOR_VALUE}">${e.usedPoints}</font>/<font color="${COLOR_VALUE}">${e.totalPoints}</font> (left: <font color="${COLOR_VALUE}">${e.totalPoints-e.usedPoints}</font>)`);
-            messages.push(`XP: <font color="${COLOR_VALUE}">${e.exp - e.dailyExp}</font> ==(<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*SOFT_CAP_MOD_START)}</font>[<font color="${COLOR_VALUE}">${e.dailyExpMax}</font>]-<font color="${COLOR_VALUE}">${e.dailyExp}</font>=<font color="${COLOR_VALUE}">${Math.floor(e.dailyExpMax*SOFT_CAP_MOD_START)-e.dailyExp}</font>[<font color="${COLOR_VALUE}">${e.dailyExpMax-e.dailyExp}</font>] )==> <font color="${COLOR_VALUE}">${e.exp}</font>`);
+            messages.push(
+                `LVL: <font color="${COLOR_VALUE}">${e.level}</font>`
+            );
+            messages.push(
+                `EP: <font color="${COLOR_VALUE}">${
+                    e.usedPoints
+                }</font>/<font color="${COLOR_VALUE}">${
+                    e.totalPoints
+                }</font> (left: <font color="${COLOR_VALUE}">${e.totalPoints -
+                    e.usedPoints}</font>)`
+            );
+            messages.push(
+                `XP: <font color="${COLOR_VALUE}">${e.exp -
+                    e.dailyExp}</font> ==(<font color="${COLOR_VALUE}">${Math.floor(
+                    e.dailyExpMax * SOFT_CAP_MOD_START
+                )}</font>[<font color="${COLOR_VALUE}">${
+                    e.dailyExpMax
+                }</font>]-<font color="${COLOR_VALUE}">${
+                    e.dailyExp
+                }</font>=<font color="${COLOR_VALUE}">${Math.floor(
+                    e.dailyExpMax * SOFT_CAP_MOD_START
+                ) -
+                    e.dailyExp}</font>[<font color="${COLOR_VALUE}">${e.dailyExpMax -
+                    e.dailyExp}</font>] )==> <font color="${COLOR_VALUE}">${
+                    e.exp
+                }</font>`
+            );
             // msg.push(`Perks:`);
             // for(let p of e.perks) {
             //     msg.push(`<font color="${COLOR_VALUE}">${p.id}</font>: <font color="${COLOR_VALUE}">${p.level}</font>`);
             // }
-            messages.map(x => { printMessage(x); });
+            messages.map(x => {
+                printMessage(x);
+            });
             logStringArray("player-ep", messages);
         });
-
 
         // ?
         hookManager.addTemplate("player-ep", "S_SHOW_USER_EP_INFO", 1, e => {
@@ -974,21 +1183,30 @@ module.exports = function utilityBox( dispatch ) {
         });
 
         // int32 limit
-        hookManager.addTemplate("player-ep", "S_CHANGE_EP_EXP_DAILY_LIMIT", 1, e => {
-            let msg = `Change Daily limit to <font color="${COLOR_VALUE}">${e.limit}</font>`;
-            // logger["player"].debug(cleanString(msg));
-            printMessage(msg);
-        });
+        hookManager.addTemplate(
+            "player-ep",
+            "S_CHANGE_EP_EXP_DAILY_LIMIT",
+            1,
+            e => {
+                let msg = `Change Daily limit to <font color="${COLOR_VALUE}">${
+                    e.limit
+                }</font>`;
+                // logger["player"].debug(cleanString(msg));
+                printMessage(msg);
+            }
+        );
     }
 
     function logStringArray(logName, messages) {
-        if(!logger[logName]) {
+        if (!logger[logName]) {
             logger[logName] = bunyan.createLogger({
                 name: logName,
-                streams: [{
-                    path: path.join(GENERAL_LOG_PATH, `${logName}.log`),
-                    level: "debug"
-                }]
+                streams: [
+                    {
+                        path: path.join(GENERAL_LOG_PATH, `${logName}.log`),
+                        level: "debug"
+                    }
+                ]
             });
         }
         messages = messages.map(x => cleanString(x));
@@ -1000,35 +1218,33 @@ module.exports = function utilityBox( dispatch ) {
     //#################################################
     // Prints the message in game and in console with local time stamp.
     // @return No return.
-    function printMessage( message, consoleOut = true ) {
-        let timedMessage =
-            `[${new Date().toLocaleTimeString()}]: ${message}`;
-        command.message( timedMessage );
-        if ( consoleOut )
-            console.log( cleanString( timedMessage ) );
+    function printMessage(message, consoleOut = true) {
+        let timedMessage = `[${new Date().toLocaleTimeString()}]: ${message}`;
+        command.message(timedMessage);
+        if (consoleOut) console.log(cleanString(timedMessage));
     }
     // @return Returns a html-tag-free string.
-    function cleanString( dirtyString ) {
-        return dirtyString.replace( /<[^>]*>/g, "" );
+    function cleanString(dirtyString) {
+        return dirtyString.replace(/<[^>]*>/g, "");
     }
     // Converts a time in milliseconds to UTC time string.
     // @return Returns the time in the format: hh:MM:SS
-    function msToUTCTimeString( timeInMs ) {
-        let secs = Math.floor( timeInMs / 1000.0 ),
-            mins = Math.floor( secs / 60.0 ),
-            h = Math.floor( mins / 60.0 ),
+    function msToUTCTimeString(timeInMs) {
+        let secs = Math.floor(timeInMs / 1000.0),
+            mins = Math.floor(secs / 60.0),
+            h = Math.floor(mins / 60.0),
             s = secs % 60,
             m = mins % 60;
-        s = addPrefixZero( s );
-        m = addPrefixZero( m );
-        h = addPrefixZero( h );
+        s = addPrefixZero(s);
+        m = addPrefixZero(m);
+        h = addPrefixZero(h);
         return `${h}:${m}:${s}`;
     }
     // Adds a zero to numbers smaller than 10.
     // @return Returns the number as string with 0 prefix or
     // the number if no prefix needed.
-    function addPrefixZero( num ) {
-        if ( num < 10 ) {
+    function addPrefixZero(num) {
+        if (num < 10) {
             num = "0" + num;
         }
         return num;
