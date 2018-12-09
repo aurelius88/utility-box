@@ -1,7 +1,7 @@
 const bunyan = require("bunyan");
 const path = require("path");
 const fs = require("fs");
-const HookManager = require("./lib/hook-manager");
+
 
 const COLOR_ENABLE = "#56B4E9";
 const COLOR_DISABLE = "#e64500";
@@ -68,14 +68,28 @@ function groupOpcodes(map) {
     return groupedMap;
 }
 
-module.exports = function utilityBox(dispatch) {
-    dispatch.game.initialize(["me", "contract"]);
+const DEPENDENCIES = [
+    {
+        name: "util-lib",
+        servers: ["https://raw.githubusercontent.com/aurelius88/util-lib/master/"]
+    }
+];
+
+module.exports = function utilityBox(mod) {
+    const Dependency = require( "./dependency" );
+    if ( !Dependency.testDependencies( DEPENDENCIES ) ) {
+        const dep = new Dependency( DEPENDENCIES, mod );
+        dep.resolveDependencies();
+        return;
+    }
+    mod.game.initialize(["me", "contract"]);
     const ROOT_COMMAND = "util";
     const POSITIONS_FILE_NAME = "positions.json";
     const OPCODES_PATH = path.join(__dirname, "opcodes");
     const GENERAL_LOG_PATH = path.join(__dirname, "logs");
-    const command = dispatch.command;
-    const hookManager = new HookManager(dispatch);
+    const command = mod.command;
+    const HookManager = require("util-lib/classes/hook-manager");
+    const hookManager = new HookManager(mod);
     const logger = {};
     if (!fs.existsSync(OPCODES_PATH)) fs.mkdirSync(OPCODES_PATH);
     if (!fs.existsSync(GENERAL_LOG_PATH)) fs.mkdirSync(GENERAL_LOG_PATH);
@@ -85,7 +99,7 @@ module.exports = function utilityBox(dispatch) {
         lastLocation = null,
         positions = new Map(),
         verbose = false,
-        version = dispatch.base.protocolVersion;
+        version = mod.dispatch.protocolVersion;
 
     const POSITIONS_DATA = getJsonData(POSITIONS_FILE_NAME);
     if (Array.isArray(POSITIONS_DATA)) {
@@ -96,7 +110,7 @@ module.exports = function utilityBox(dispatch) {
     let OPCODE_FILE_NAME, OPCODE_MAP, GROUPED_OPCODE_MAP;
 
     OPCODE_FILE_NAME = `../../../node_modules/tera-data/map_base/protocol.${version}.map`;
-    OPCODE_MAP = dispatch.base.protocolMap.code; // opcode -> name
+    OPCODE_MAP = mod.dispatch.protocolMap.code; // opcode -> name
     GROUPED_OPCODE_MAP = groupOpcodes(OPCODE_MAP); // group (S,C,DBS,...) -> opcode
 
     //saveJsonData(OPCODE_JSON, Array.from(OPCODE_MAP));
@@ -107,8 +121,8 @@ module.exports = function utilityBox(dispatch) {
 
     hookManager.hookGroup("player-ep");
 
-    dispatch.game.on("enter_game", () => {
-        gameId = dispatch.game.me.gameId;
+    mod.game.on("enter_game", () => {
+        gameId = mod.game.me.gameId;
     });
 
     // dispatch.game.on( 'leave_game', () => {
@@ -688,7 +702,7 @@ module.exports = function utilityBox(dispatch) {
 
     function useItem(item) {
         printMessage(`USE ITEM: ${item}`);
-        dispatch.toServer("C_USE_ITEM", 3, {
+        mod.toServer("C_USE_ITEM", 3, {
             gameId: gameId,
             id: item,
             dbid: 0,
@@ -937,7 +951,7 @@ module.exports = function utilityBox(dispatch) {
         int32 unk3 # 0? new
         */
         hookManager.addTemplate("buff", "S_ABNORMALITY_BEGIN", 3, e => {
-            if (dispatch.game.me.is(e.target))
+            if (mod.game.me.is(e.target))
                 printMessage(
                     `Buff start: ${e.id} (dur:${e.duration}, stacks:${
                         e.stacks
@@ -953,7 +967,7 @@ module.exports = function utilityBox(dispatch) {
         int32  stacks
         */
         hookManager.addTemplate("buff", "S_ABNORMALITY_REFRESH", 1, e => {
-            if (dispatch.game.me.is(e.target))
+            if (mod.game.me.is(e.target))
                 printMessage(
                     `Buff refresh: ${e.id} (dur:${e.duration}, stacks:${
                         e.stacks
@@ -966,7 +980,7 @@ module.exports = function utilityBox(dispatch) {
         uint32 id
         */
         hookManager.addTemplate("buff", "S_ABNORMALITY_END", 1, e => {
-            if (dispatch.game.me.is(e.target))
+            if (mod.game.me.is(e.target))
                 printMessage(`Buff end: ${e.id} (->${e.target})`);
         });
 
@@ -978,7 +992,7 @@ module.exports = function utilityBox(dispatch) {
         byte unk3
         */
         hookManager.addTemplate("buff", "S_ABNORMALITY_FAIL", 1, e => {
-            if (dispatch.game.me.is(e.target))
+            if (mod.game.me.is(e.target))
                 printMessage(
                     `Buff end: ${e.id} (->${e.target},unk1:${e.unk1},unk2:${
                         e.unk2
