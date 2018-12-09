@@ -163,7 +163,7 @@ module.exports = function utilityBox(dispatch) {
                         );
 
                     printMessage(
-                        `group:${group}, name: ${hookName}, version: ${version}, vars: ${JSON.stringify(
+                        `Successfully added hook to group:${group}, name: ${hookName}, version: ${version}, vars: ${JSON.stringify(
                             vars
                         )}`
                     );
@@ -175,8 +175,12 @@ module.exports = function utilityBox(dispatch) {
                         e => {
                             // used in eval
                             for (let v of vars) {
+                                let value = eval("e." + v);
+                                if(typeof value == "bigint") value = value.toString();
                                 printMessage(
-                                    v + " = " + JSON.stringify(eval("e." + v))
+                                    v + " = " + JSON.stringify(
+                                        value
+                                    )
                                 );
                             }
                         }
