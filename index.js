@@ -280,7 +280,7 @@ module.exports = function utilityBox(dispatch) {
                         );
                     } else {
                         printMessage(
-                            `There is no position with name "<font colot="${COLOR_HIGHLIGHT}">${name}</font>".`
+                            `There is no position with name "<font color="${COLOR_HIGHLIGHT}">${name}</font>".`
                         );
                     }
                 }
@@ -289,9 +289,11 @@ module.exports = function utilityBox(dispatch) {
                 $default: positions.clear
             },
             $default() {
-                if (lastLocation.loc !== undefined) {
+                if (lastLocation && lastLocation.loc !== undefined) {
                     printMessage(`Current Position:  ${lastLocation.loc}`);
                 } else {
+                    if(!hookManager.hasActiveGroup("movement"))
+                        switchGroup("movement");
                     printMessage(
                         "No position, yet. Please move one step or jump to get your position. And try it again."
                     );
@@ -542,9 +544,13 @@ module.exports = function utilityBox(dispatch) {
     function switchGroup(groupNameParts) {
         if (!groupNameParts || !groupNameParts.length) return false;
         let groupName = "";
-        for (let i = 0; i < groupNameParts.length; i++) {
-            groupName += groupNameParts[i];
-            if (i < groupNameParts.length - 1) groupName += " ";
+        if(Array.isArray(groupNameParts)) {
+            for (let i = 0; i < groupNameParts.length; i++) {
+                groupName += groupNameParts[i];
+                if (i < groupNameParts.length - 1) groupName += " ";
+            }
+        } else {
+            groupName = groupNameParts;
         }
         if (groupName == "") {
             printMessage("Please enter a group name.");
