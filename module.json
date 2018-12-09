@@ -1,4 +1,11 @@
 {
+    "disableAutoUpdate": false,
+    "options": {
+        "niceName": "Utility-Box",
+        "settingsVersion": 1,
+        "settingsFile": "config.json",
+        "settingsMigrator": "settings_migrator.js"
+    },
     "servers": ["https://raw.githubusercontent.com/aurelius88/utility-box/master/"],
     "supportUrl": "https://github.com/aurelius88/utility-box/issues"
 }
