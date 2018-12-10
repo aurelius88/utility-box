@@ -1,6 +1,3 @@
-# eslint
-.eslintrc.json
-
 # module output
 positions.json
 opcodes.json
