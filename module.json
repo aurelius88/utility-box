@@ -1,5 +1,9 @@
 {
     "disableAutoUpdate": false,
+    "name": "utility-box",
+    "author": "aurelius88",
+    "description": "Tool for help developing modules. Mostly analysing packets and stuff like that.",
+    "version": "0.1",
     "options": {
         "niceName": "Utility-Box",
         "settingsVersion": 1,
@@ -7,5 +11,8 @@
         "settingsMigrator": "settings_migrator.js"
     },
     "servers": ["https://raw.githubusercontent.com/aurelius88/utility-box/master/"],
-    "supportUrl": "https://github.com/aurelius88/utility-box/issues"
+    "supportUrl": "https://github.com/aurelius88/utility-box/issues",
+    "dependencies": {
+        "util-lib": "https://raw.githubusercontent.com/aurelius88/util-lib/master/"
+    }
 }

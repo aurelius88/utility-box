@@ -1,8 +1,7 @@
 {
     "files": {
-        "dependency.js": "f2959bc043719802dac173a64f3379967a8ad66cd19f66554f0611e465a7331a",
-        "index.js": "ef646cbee49199cd8aac97aab7fd71d679e532a4e21b43d67be6f859b9de3e36",
-        "module.json": "27d69c4a0bc89234d5b4710c789d86ce4e1481d8a8fa1be5320872efbf75f41e",
+        "index.js": "af6f3c7275c79f7ae8cc191c326c2af6281193aaf689574d7eb4f5ac9576bf21",
+        "module.json": "1877628176e1fe6837ea860b18339cd6c84c7bb69b00f11cc9dba10a1f18033c",
         "settings_migrator.js": "37d44addffcd96b157b29e322452d3328b922c4eb225a89768c3afc46db8f38b",
         "lib/file-helper.js": "5709398cee4c7b35026539c409208e9b48d7a2395dcaf3abcabf163a7455388b",
         "lib/hook-manager.js": "017cc9e325e11cafcee49e55e488dc2296ec5bcde9de71c65cab9a3369042c6f",

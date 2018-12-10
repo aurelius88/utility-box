@@ -68,27 +68,14 @@ function groupOpcodes(map) {
     return groupedMap;
 }
 
-const DEPENDENCIES = [
-    {
-        name: "util-lib",
-        servers: ["https://raw.githubusercontent.com/aurelius88/util-lib/master/"]
-    }
-];
-
 module.exports = function utilityBox(mod) {
-    const Dependency = require( "./dependency" );
-    if ( !Dependency.testDependencies( DEPENDENCIES ) ) {
-        const dep = new Dependency( DEPENDENCIES, mod );
-        dep.resolveDependencies();
-        return;
-    }
     mod.game.initialize(["me", "contract"]);
     const ROOT_COMMAND = "util";
     const POSITIONS_FILE_NAME = "positions.json";
     const OPCODES_PATH = path.join(__dirname, "opcodes");
     const GENERAL_LOG_PATH = path.join(__dirname, "logs");
     const command = mod.command;
-    const HookManager = require("util-lib/classes/hook-manager");
+    const HookManager = mod.require["util-lib"]["hook-manager"];
     const hookManager = new HookManager(mod);
     const logger = {};
     if (!fs.existsSync(OPCODES_PATH)) fs.mkdirSync(OPCODES_PATH);
