@@ -6,9 +6,3 @@ out
 logs
 opcodes
 config.json
-
-# SHAGen tool
-SHAGen.exe
-SHAGen.exe.config
-Newtonsoft.Json.dll
-generated-manifest.json
