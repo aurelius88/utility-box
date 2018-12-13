@@ -28,11 +28,6 @@ module.exports = {
                 }
             }
         ],
-        "array-element-newline": [
-            "error",
-            // "consistent"
-            { multiline: true, minItems: 5 }
-        ],
         semi: ["warn", "always"],
         "no-unused-expressions": "warn",
         "no-unused-vars": "warn",
