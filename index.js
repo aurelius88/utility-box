@@ -77,6 +77,8 @@ module.exports = function utilityBox(mod) {
     const command = mod.command;
     const HookManager = mod.require["util-lib"]["hook-manager"];
     const hookManager = new HookManager(mod);
+    const MessageBuilder = mod.require["util-lib"]["message-builder"];
+    const msg = new MessageBuilder();
     const logger = {};
     if (!fs.existsSync(OPCODES_PATH)) fs.mkdirSync(OPCODES_PATH);
     if (!fs.existsSync(GENERAL_LOG_PATH)) fs.mkdirSync(GENERAL_LOG_PATH);
@@ -103,10 +105,10 @@ module.exports = function utilityBox(mod) {
     //saveJsonData(OPCODE_JSON, Array.from(OPCODE_MAP));
     //saveJsonData(GROUPED_OPCODE_JSON, Array.from(GROUPED_OPCODE_MAP));
 
-    initHooks();
+    initGroupedOpcodeHooks();
     initFixHooks();
 
-    hookManager.hookGroup("player-ep");
+    hookManager.hookGroup("player-ep-log");
 
     mod.game.on("enter_game", () => {
         gameId = mod.game.me.gameId;
@@ -521,7 +523,7 @@ module.exports = function utilityBox(mod) {
                             ]
                         });
                     }
-                    logger[opcode].debug(data.toString("hex"));
+                    logger[opcode].debug({name : OPCODE_MAP[opcode] , data});
                 }
             }
         );
@@ -662,7 +664,7 @@ module.exports = function utilityBox(mod) {
         printMessage(s);
     }
 
-    function initHooks() {
+    function initGroupedOpcodeHooks() {
         for (let item of GROUPED_OPCODE_MAP) {
             hookManager.addTemplate(
                 item[0],
@@ -794,7 +796,7 @@ module.exports = function utilityBox(mod) {
             printMessage("::::::::::::::::::");
         });
         //uint32 countdown # 10
-        hookManager.addTemplate("logout", "S_PREPARE_EXIT", 1, event => {
+        hookManager.addTemplate("exit", "S_PREPARE_EXIT", 1, event => {
             printMessage(`PREPARE EXIT countdown: ${event.countdown}s`);
         });
         //int32 time
@@ -809,10 +811,71 @@ module.exports = function utilityBox(mod) {
         //# These are sent to the launcher prior to closing the game
         //int32 category
         //int32 code
-        hookManager.addTemplate("logout", "S_EXIT", 3, event => {
+        hookManager.addTemplate("exit", "S_EXIT", 3, event => {
             printMessage(
                 `EXIT category: "${event.category}", code: "${event.code}"`
             );
+        });
+
+        hookManager.addTemplate( "exit", "C_EXIT", 1, e => printMessage( "C_EXIT" ) );
+
+        hookManager.addTemplate( "logout", "C_RETURN_TO_LOBBY", 1, e => printMessage( "C_RETURN_TO_LOBBY" ) );
+        hookManager.addTemplate( "logout", "S_RETURN_TO_LOBBY", 1, e => printMessage( "S_RETURN_TO_LOBBY" ) );
+        hookManager.addTemplate( "channel", "S_SELECT_CHANNEL", 1, e => printMessage( "S_SELECT_CHANNEL" ) );
+        // int32 seconds
+        hookManager.addTemplate( "channel", "S_PREPARE_SELECT_CHANNEL", 1, e =>
+            printMessage( `S_SELECT_CHANNEL seconds=${e.seconds}` )
+        );
+        // count  channels
+        // offset channels
+        //
+        // int32 unk
+        // int32 zone
+        // array channels
+        // - int32 channel
+        // - int32 density
+        hookManager.addTemplate( "channel", "S_LIST_CHANNEL", 1, e => {
+            printMessage( `S_LIST_CHANNEL ${e.count} channel${e.count > 1 ? "s" : ""} in ${e.zone}. unk=${e.unk}` );
+            printMessage( "channel: density" );
+            for ( let c of e.channels ) {
+                printMessage( `${c.channel}: ${c.density}` );
+            }
+        });
+        // int32 unk
+        // int32 zone
+        hookManager.addTemplate( "channel", "C_LIST_CHANNEL", 1, e => printMessage( `C_LIST_CHANNEL in ${e.zone}. unk=${e.unk}` ) );
+        // int32 zone    # If changed, triggers the "Moving to channel X." message
+        // int32 channel # ^ See above
+        // int32 density # 0 = Low, 1 = Medium, 2 = High
+        // int32 type    # 1 = Multiple channels with density, 2 = Cannot change channel, 3 = Hidden (single channel)
+        hookManager.addTemplate( "channel", "S_CURRENT_CHANNEL", 2, e => {
+            printMessage( `S_CURRENT_CHANNEL ${e.channel}(ch): ${e.density}(density) in ${e.zone}. unk=${e.unk}` );
+            switch ( e.type ) {
+                case 1:
+                    printMessage( "Multiple channels with density" );
+                    break;
+                case 2:
+                    printMessage( "Cannot change channel" );
+                    break;
+                case 3:
+                    printMessage( "Hidden (single channel)" );
+                    break;
+                default:
+                    printMessage( `Unknown type: ${e.type}` );
+            }
+        });
+        // int32 unk
+        // int32 zone
+        // int32 channel
+        hookManager.addTemplate( "channel", "C_SELECT_CHANNEL", 1, e => {
+            printMessage( `C_SELECT_CHANNEL ${e.channel}(ch) in ${e.zone}. unk=${e.unk}` );
+        });
+        // byte unk # 0-1, not sure what it means
+        hookManager.addTemplate( "channel", "S_CANCEL_SELECT_CHANNEL", 1, e => {
+            printMessage( `S_CANCEL_SELECT_CHANNEL unk=${e.unk}` );
+        });
+        hookManager.addTemplate( "channel", "C_CANCEL_SELECT_CHANNEL", 1, e => {
+            printMessage( `C_CANCEL_SELECT_CHANNEL` );
         });
 
         /*
@@ -839,14 +902,14 @@ module.exports = function utilityBox(mod) {
                 for (let item of event.inventory) {
                     s += item.slot;
                     switch (item.type) {
-                    case 1:
-                        s += `# item: ${item.item}`;
-                        break;
-                    case 2:
-                        s += `# skill: ${item.skill}`;
-                        break;
-                    default:
-                        s += `# unknown (${item.type})`;
+                        case 1:
+                            s += `# item: ${item.item}`;
+                            break;
+                        case 2:
+                            s += `# skill: ${item.skill}`;
+                            break;
+                        default:
+                            s += `# unknown (${item.type})`;
                     }
                     s += ` (count: ${item.amount}, cd: ${item.cooldown})\n`;
                 }
@@ -883,14 +946,14 @@ module.exports = function utilityBox(mod) {
                 for (let item of event.inventory) {
                     s += item.slot;
                     switch (item.type) {
-                    case 1:
-                        s += `# item: ${item.item}`;
-                        break;
-                    case 2:
-                        s += `# skill: ${item.skill}`;
-                        break;
-                    default:
-                        s += `# unknown (${item.type})`;
+                        case 1:
+                            s += `# item: ${item.item}`;
+                            break;
+                        case 2:
+                            s += `# skill: ${item.skill}`;
+                            break;
+                        default:
+                            s += `# unknown (${item.type})`;
                     }
                     s += ` (cd: ${item.cooldown})\n`;
                 }
@@ -913,14 +976,14 @@ module.exports = function utilityBox(mod) {
             event => {
                 let s = `Use premium bar slot ${event.slot} (set:${event.set})`;
                 switch (event.type) {
-                case 1:
-                    s += `# item: ${event.item}`;
-                    break;
-                case 2:
-                    s += `# skill: ${event.skill}`;
-                    break;
-                default:
-                    s += `# unknown (${event.type})`;
+                    case 1:
+                        s += `# item: ${event.item}`;
+                        break;
+                    case 2:
+                        s += `# skill: ${event.skill}`;
+                        break;
+                    default:
+                        s += `# unknown (${event.type})`;
                 }
                 printMessage(s);
             }
@@ -1128,11 +1191,22 @@ module.exports = function utilityBox(mod) {
                     e.exp
                 }</font>`
             );
-
             messages.map(x => {
                 printMessage(x);
             });
-            logStringArray("player-ep", messages);
+        });
+
+        hookManager.addTemplate("player-ep-log", "S_PLAYER_CHANGE_EP", 1, e => {
+            logData(`${mod.game.me.serverId}-${mod.game.me.name}-ep`,e);
+        });
+        // int32 totalPoints
+        // int32 gainedPoints
+        hookManager.addTemplate("player-ep", "S_CHANGE_EP_POINT", 1, e => {
+            msg.clear();
+            msg.text("EP: ").color(COLOR_VALUE).text(e.totalPoints);
+            msg.color().text("Gained?: ");
+            msg.color(COLOR_VALUE).text(e.gainedPoints);
+            if(verbose) printMessage(msg.toHtml());
         });
 
         /*
@@ -1187,8 +1261,11 @@ module.exports = function utilityBox(mod) {
             messages.map(x => {
                 printMessage(x);
             });
-            logStringArray("player-ep", messages);
         });
+
+        hookManager.addTemplate("player-ep-log", "S_LOAD_EP_INFO", 1, e => {
+            logData(`${mod.game.me.serverId}-${mod.game.me.name}-ep`,e);
+        })
 
         // ?
         hookManager.addTemplate("player-ep", "S_SHOW_USER_EP_INFO", 1, e => {
@@ -1210,6 +1287,34 @@ module.exports = function utilityBox(mod) {
                 printMessage(msg);
             }
         );
+    }
+
+    function logData(logName, data) {
+        if (!logger[logName]) {
+            logger[logName] = bunyan.createLogger({
+                name: logName,
+                streams: [
+                    {
+                        path: path.join(GENERAL_LOG_PATH, `${logName}.log`),
+                        level: "debug"
+                    }
+                ]
+            });
+        }
+        let serializedData = serializeData(data);
+        logger[logName].debug({ data: serializedData, localeTime: new Date().toLocaleTimeString() });
+    }
+
+    function serializeData( data ) {
+        let serializedData = {}
+        for(let p in data) {
+            if(typeof data[p] === 'object') serializedData[p] = serializeData(data[p]);
+            else if(typeof data[p] === 'bigint') serializedData[p] = data[p].toString()
+            else {
+                serializedData[p] = JSON.stringify(data[p]);
+            }
+        }
+        return serializedData;
     }
 
     function logStringArray(logName, messages) {
