@@ -1,11 +1,8 @@
 {
     "files": {
-        "index.js": "95e3aeb512bbac916f073454757644179a45d4ed550a969659f538391c91c9f5",
+        "index.js": "6f799a2dd0b8e2b72c69a0e03ec0d79a8eed3359db288c11b39447a9cd3e6b90",
         "module.json": "1877628176e1fe6837ea860b18339cd6c84c7bb69b00f11cc9dba10a1f18033c",
-        "settings_migrator.js": "37d44addffcd96b157b29e322452d3328b922c4eb225a89768c3afc46db8f38b",
-        "lib/file-helper.js": "5709398cee4c7b35026539c409208e9b48d7a2395dcaf3abcabf163a7455388b",
-        "lib/hook-manager.js": "017cc9e325e11cafcee49e55e488dc2296ec5bcde9de71c65cab9a3369042c6f",
-        "lib/utils.js": "9793238160d10560ea7b123acd172ab215503d8ad862bda07ebc72cf2c1ee630"
+        "settings_migrator.js": "37d44addffcd96b157b29e322452d3328b922c4eb225a89768c3afc46db8f38b"
     },
     "defs": {}
 }

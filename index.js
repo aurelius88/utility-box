@@ -10,62 +10,11 @@ const COLOR_HIGHLIGHT = "#81ee7b";
 const SOFT_CAP_MOD_START = 0.88945;
 const SOFT_CAP_MOD_END = SOFT_CAP_MOD_START + 0.2;
 
-function getJsonData( pathToFile ) {
-    try {
-        return JSON.parse( fs.readFileSync( path.join( __dirname, pathToFile ) ) );
-    } catch ( e ) {
-        return undefined;
-    }
-}
-
-function saveJsonData( pathToFile, data ) {
-    fs.writeFileSync( path.join( __dirname, pathToFile ), JSON.stringify( data, null, 4 ) );
-}
-
-function readOpcodes( rawFile, jsonFile, map ) {
-    let data = getJsonData( jsonFile );
-    let newData = Array.from( readOpcodesRaw( rawFile ) );
-    if ( !data ) data = newData;
-    else data.concat( newData );
-    if ( map ) {
-        data.map( x => map.set( x[0], x[1]) );
-    } else {
-        map = new Map( data );
-    }
-    return map;
-}
-
-function readOpcodesRaw( pathToFile ) {
-    let map = new Map();
-    let lines = fs.readFileSync( path.join( __dirname, pathToFile ), "utf8" ).split( /\s*\r?\n\s*/ );
-    // init OPCODE_MAP
-    for ( let line of lines ) {
-        let divided = line.split( /\s*=\s*|\s*\s\s*/ );
-        if ( divided.length >= 2 ) {
-            map.set( parseInt( divided[1], 10 ), divided[0]);
-        }
-    }
-    return map;
-}
-
-function groupOpcodes( map ) {
-    let groupedMap = new Map();
-    for ( let e of map ) {
-        let divisionPos = e[1].indexOf( "_" );
-        let group = e[1].slice( 0, divisionPos );
-        if ( groupedMap.has( group ) ) {
-            groupedMap.get( group ).push( e[0]);
-        } else {
-            groupedMap.set( group, [e[0]]);
-        }
-    }
-    return groupedMap;
-}
-
 module.exports = function utilityBox( mod ) {
     mod.game.initialize(["me", "contract"]);
     const ROOT_COMMAND = "util";
     const POSITIONS_FILE_NAME = "positions.json";
+    const POSITIONS_PATH = path.resolve( __dirname, POSITIONS_FILE_NAME);
     const OPCODES_PATH = path.join( __dirname, "opcodes" );
     const GENERAL_LOG_PATH = path.join( __dirname, "logs" );
     const command = mod.command;
@@ -73,6 +22,9 @@ module.exports = function utilityBox( mod ) {
     const hookManager = new HookManager( mod );
     const MessageBuilder = mod.require["util-lib"]["message-builder"];
     const msg = new MessageBuilder();
+    const ChatHelper = mod.require["util-lib"]["chat-helper"];
+    const chat = new ChatHelper( mod );
+    const FileHelper = mod.require["util-lib"]["file-helper"];
     const logger = {};
     if ( !fs.existsSync( OPCODES_PATH ) ) fs.mkdirSync( OPCODES_PATH );
     if ( !fs.existsSync( GENERAL_LOG_PATH ) ) fs.mkdirSync( GENERAL_LOG_PATH );
@@ -84,7 +36,7 @@ module.exports = function utilityBox( mod ) {
         verbose = false,
         version = mod.dispatch.protocolVersion;
 
-    const POSITIONS_DATA = getJsonData( POSITIONS_FILE_NAME );
+    const POSITIONS_DATA = FileHelper.getJsonData( POSITIONS_PATH );
     if ( Array.isArray( POSITIONS_DATA ) ) {
         positions = new Map( POSITIONS_DATA );
     }
@@ -94,7 +46,7 @@ module.exports = function utilityBox( mod ) {
 
     OPCODE_FILE_NAME = `../../../node_modules/tera-data/map_base/protocol.${version}.map`;
     OPCODE_MAP = mod.dispatch.protocolMap.code; // opcode -> name
-    GROUPED_OPCODE_MAP = groupOpcodes( OPCODE_MAP ); // group (S,C,DBS,...) -> opcode
+    GROUPED_OPCODE_MAP = FileHelper.groupOpcodes( OPCODE_MAP ); // group (S,C,DBS,...) -> opcode
 
     //saveJsonData(OPCODE_JSON, Array.from(OPCODE_MAP));
     //saveJsonData(GROUPED_OPCODE_JSON, Array.from(GROUPED_OPCODE_MAP));
@@ -114,16 +66,16 @@ module.exports = function utilityBox( mod ) {
     process.on( "exit", () => {
         let posData = [];
         positions.forEach( ( v, k ) => posData.push([k, v]) );
-        saveJsonData( POSITIONS_FILE_NAME, posData );
+        FileHelper.saveJsonData( POSITIONS_PATH, posData );
         stopScanning();
     });
 
     // dispatch.game.contract.on( "begin", () => {
-    //     printMessage( "Begin Contract." );
+    //     chat.printMessage( "Begin Contract." );
     // } );
     //
     // dispatch.game.contract.on( "end", () => {
-    //     printMessage( "End Contract." );
+    //     chat.printMessage( "End Contract." );
     // } );
 
     let illegalPosCommands = [];
@@ -146,16 +98,16 @@ module.exports = function utilityBox( mod ) {
                 $default: function( group, hookName, version, ...vars ) {
                     if ( arguments.length < 4 ) return printHelpList( this.hook.add );
                     if ( typeof version == "string" && !/raw|\*|[0-9]+/.test( version ) ) {
-                        return printMessage(
+                        return chat.printMessage(
                             `Illegal version "<font color "${COLOR_HIGHLIGHT}">${version}</font>". Should be "<font color "${COLOR_HIGHLIGHT}">*</font>", "<font color "${COLOR_HIGHLIGHT}">raw</font>" or a positive integer number <font color "${COLOR_HIGHLIGHT}">0,1,2,...</font>.`
                         );
                     }
                     if ( !Array.from( OPCODE_MAP.values() ).includes( hookName ) )
-                        return printMessage(
+                        return chat.printMessage(
                             `There is no hook named "<font color="${COLOR_HIGHLIGHT}">${hookName}</font>".`
                         );
 
-                    printMessage(
+                    chat.printMessage(
                         `Successfully added hook to group:${group}, name: ${hookName}, version: ${version}, vars: ${JSON.stringify(
                             vars
                         )}`
@@ -166,22 +118,22 @@ module.exports = function utilityBox( mod ) {
                         for ( let v of vars ) {
                             let value = eval( "e." + v );
                             if ( typeof value == "bigint" ) value = value.toString();
-                            printMessage( v + " = " + JSON.stringify( value ) );
+                            chat.printMessage( v + " = " + JSON.stringify( value ) );
                         }
                     });
                     if ( !result.group ) {
-                        printMessage( "Hook does already exist." );
+                        chat.printMessage( "Hook does already exist." );
                     }
                 }
             },
             remove: {
                 id: function( group, id ) {
                     if ( hookManager.removeTemplateAt( group, id ) ) {
-                        printMessage(
+                        chat.printMessage(
                             `Template id <font color="${COLOR_VALUE}">${id}</font> in <font color="${COLOR_VALUE}">${group}</font> successfully removed.`
                         );
                     } else {
-                        printMessage(
+                        chat.printMessage(
                             `Could not remove template id <font color="${COLOR_VALUE}">${id}</font> in <font color="${COLOR_VALUE}">${group}</font>. Check if group and id are correct.`
                         );
                     }
@@ -189,7 +141,7 @@ module.exports = function utilityBox( mod ) {
                 $default: function( name, group ) {
                     if ( !name ) printHelpList( this.hook.remove );
                     if ( hookManager.removeTempletByName( name, group ) ) {
-                        printMessage(
+                        chat.printMessage(
                             `Template named <font color="${COLOR_VALUE}">${name}</font> ${
                                 group ? `in <font color="${COLOR_VALUE}">${group}</font> ` : ""
                             }successfully removed.`
@@ -232,7 +184,7 @@ module.exports = function utilityBox( mod ) {
                             illegalCommands += illegalPosCommands[i];
                             if ( i < illegalPosCommands.length - 1 ) illegalCommands += ", ";
                         }
-                        printMessage(
+                        chat.printMessage(
                             `Position named "<font color="${COLOR_HIGHLIGHT}">${
                                 illegalCommands[illegalCommandIndex]
                             }</font>", but you cannot name your position to one of these:<font color="${COLOR_HIGHLIGHT}"> ${illegalCommands}</font>. Please choose another name.`
@@ -254,9 +206,9 @@ module.exports = function utilityBox( mod ) {
                         if ( i < nameParts.length - 1 ) name += " ";
                     }
                     if ( positions.delete( name ) ) {
-                        printMessage( `Position "<font colot="${COLOR_HIGHLIGHT}">${name}</font>" deleted.` );
+                        chat.printMessage( `Position "<font colot="${COLOR_HIGHLIGHT}">${name}</font>" deleted.` );
                     } else {
-                        printMessage(
+                        chat.printMessage(
                             `There is no position with name "<font color="${COLOR_HIGHLIGHT}">${name}</font>".`
                         );
                     }
@@ -267,10 +219,10 @@ module.exports = function utilityBox( mod ) {
             },
             $default() {
                 if ( lastLocation && lastLocation.loc !== undefined ) {
-                    printMessage( `Current Position:  ${lastLocation.loc}` );
+                    chat.printMessage( `Current Position:  ${lastLocation.loc}` );
                 } else {
                     if ( !hookManager.hasActiveGroup( "movement" ) ) switchGroup( "movement" );
-                    printMessage(
+                    chat.printMessage(
                         "No position, yet. Please move one step or jump to get your position. And try it again."
                     );
                 }
@@ -279,10 +231,10 @@ module.exports = function utilityBox( mod ) {
         use: {
             $default( arg ) {
                 if ( arg !== undefined ) {
-                    printMessage( `arg1 type: ${typeof arg1}` );
+                    chat.printMessage( `arg1 type: ${typeof arg1}` );
                     useItem( arg );
                 } else {
-                    printMessage( `Missing item id. e.g.: ${ROOT_COMMAND} use 200999` );
+                    chat.printMessage( `Missing item id. e.g.: ${ROOT_COMMAND} use 200999` );
                 }
             }
         },
@@ -292,11 +244,11 @@ module.exports = function utilityBox( mod ) {
     };
 
     function printHelpList( cmds = commands ) {
-        printMessage( cmds.help.long() );
-        printMessage( "subcommands:" );
+        chat.printMessage( cmds.help.long() );
+        chat.printMessage( "subcommands:" );
         for ( let c in cmds ) {
             if ( c != "$default" ) {
-                printMessage( `<font color="${COLOR_HIGHLIGHT}">${c}</font>  -  ${cmds[c].help.short()}` );
+                chat.printMessage( `<font color="${COLOR_HIGHLIGHT}">${c}</font>  -  ${cmds[c].help.short()}` );
             }
         }
     }
@@ -444,7 +396,7 @@ module.exports = function utilityBox( mod ) {
         scannedCodes = [];
         let result = hookManager.hook( "raw", "*", "raw", ( code, data, fromServer, fake ) => {
             if ( !scannedCodes.includes( code ) ) {
-                printMessage( `${code}(${typeof code}) -> ${OPCODE_MAP.get( code )}` );
+                chat.printMessage( `${code}(${typeof code}) -> ${OPCODE_MAP.get( code )}` );
                 scannedCodes.push( code );
             }
         });
@@ -455,7 +407,7 @@ module.exports = function utilityBox( mod ) {
         } else {
             msg += `<font color="${COLOR_ENABLE}">enabled</font>.`;
         }
-        printMessage( msg );
+        chat.printMessage( msg );
     }
 
     function scanOpcode( opcode ) {
@@ -464,7 +416,7 @@ module.exports = function utilityBox( mod ) {
                 let left = fake && fromServer ? "P" : "S";
                 let arrow = fromServer ? "->" : "<-";
                 let right = fake && !fromServer ? "P" : "C";
-                printMessage( `${left} ${arrow} ${right} ${code}` );
+                chat.printMessage( `${left} ${arrow} ${right} ${code}` );
                 if ( !logger[opcode]) {
                     logger[opcode] = bunyan.createLogger({
                         name: "opcode",
@@ -487,7 +439,7 @@ module.exports = function utilityBox( mod ) {
         } else {
             msg = `<font color="${COLOR_ENABLE}">Start</font>`;
         }
-        printMessage( `${msg} scanning for <font color="${COLOR_VALUE}">${opcode}</font>.` );
+        chat.printMessage( `${msg} scanning for <font color="${COLOR_VALUE}">${opcode}</font>.` );
     }
 
     /**
@@ -506,18 +458,18 @@ module.exports = function utilityBox( mod ) {
             groupName = groupNameParts;
         }
         if ( groupName == "" ) {
-            printMessage( "Please enter a group name." );
-            printMessage( this.scan.help.long() );
+            chat.printMessage( "Please enter a group name." );
+            chat.printMessage( this.scan.help.long() );
             return false;
         }
         if ( !hookManager.hasGroup( groupName ) ) {
-            printMessage( "There is no group named " + groupName );
+            chat.printMessage( "There is no group named " + groupName );
             return false;
         }
         let isActive = hookManager.hasActiveGroup( groupName );
         if ( isActive ) hookManager.unhookGroup( groupName );
         else hookManager.hookGroup( groupName );
-        printMessage(
+        chat.printMessage(
             groupName
                 + ( !isActive ?
                     ` <font color="${COLOR_ENABLE}">enabled</font>.`
@@ -534,7 +486,7 @@ module.exports = function utilityBox( mod ) {
 
     function switchVerbose() {
         verbose = !verbose;
-        printMessage(
+        chat.printMessage(
             "Verbose mode "
                 + ( verbose ? '<font color="#56B4E9">enabled</font>.' : '<font color="#E69F00">disabled</font>.' )
         );
@@ -542,40 +494,40 @@ module.exports = function utilityBox( mod ) {
 
     function savePosition( name ) {
         if ( positions.has( name ) ) {
-            printMessage( "There is already a position saved with this name. Choose another name." );
+            chat.printMessage( "There is already a position saved with this name. Choose another name." );
             return false;
         }
         let pos = lastLocation.loc;
         positions.set( name, pos );
-        printMessage( `Position "${JSON.stringify( pos )}" saved as "${name}".` );
+        chat.printMessage( `Position "${JSON.stringify( pos )}" saved as "${name}".` );
         return true;
     }
 
     function printPosition( value, key ) {
-        printMessage( `"${key}": ${JSON.stringify( value )}` );
+        chat.printMessage( `"${key}": ${JSON.stringify( value )}` );
     }
 
     function printPositions() {
-        printMessage( positions.size + " positions saved:" );
+        chat.printMessage( positions.size + " positions saved:" );
         positions.forEach( printPosition );
     }
 
     function printGroups() {
-        printMessage( "Available hook groups:" );
+        chat.printMessage( "Available hook groups:" );
         for ( let group of hookManager.getHookTemplates().keys() ) {
-            printMessage( group );
+            chat.printMessage( group );
         }
     }
 
     function printTemplates( group ) {
         if ( group ) {
             if ( !hookManager.hasGroup( group ) ) {
-                printMessage( `There is no such group <font color="${COLOR_VALUE}">${group}</font>.` );
+                chat.printMessage( `There is no such group <font color="${COLOR_VALUE}">${group}</font>.` );
             }
-            printMessage( `Templates of group <font color="${COLOR_HIGHLIGHT}">${group}</font>:` );
+            chat.printMessage( `Templates of group <font color="${COLOR_HIGHLIGHT}">${group}</font>:` );
             let groupTemps = hookManager.getHookTemplates().get( group );
             for ( let i = 0; i < groupTemps.length; i++ ) {
-                printMessage( `${i}: ${JSON.stringify( groupTemps[i][0])}` );
+                chat.printMessage( `${i}: ${JSON.stringify( groupTemps[i][0])}` );
             }
         } else {
             for ( let g of hookManager.getHookTemplates().keys() ) {
@@ -585,16 +537,16 @@ module.exports = function utilityBox( mod ) {
     }
 
     function printActiveGroups() {
-        printMessage( "Active hook groups:" );
+        chat.printMessage( "Active hook groups:" );
         for ( let group of hookManager.getActiveHooks().keys() ) {
             if ( hookManager.activeHooks.get( group ).length ) {
-                printMessage( group );
+                chat.printMessage( group );
             }
         }
     }
 
     function printOpcodes() {
-        printMessage( "Opcodes:" );
+        chat.printMessage( "Opcodes:" );
         let s = "";
         let size = OPCODE_MAP.size;
         let i = 0;
@@ -603,13 +555,13 @@ module.exports = function utilityBox( mod ) {
             if ( i < size - 1 ) s += ", ";
             i++;
         }
-        printMessage( s );
+        chat.printMessage( s );
     }
 
     function initGroupedOpcodeHooks() {
         for ( let item of GROUPED_OPCODE_MAP ) {
             hookManager.addTemplate( item[0], OPCODE_MAP.get( item[1]), "*", e => {
-                printMessage( JSON.stringify( e ) );
+                chat.printMessage( JSON.stringify( e ) );
             });
         }
     }
@@ -617,17 +569,17 @@ module.exports = function utilityBox( mod ) {
     function startScanning() {
         hookManager.hookAll();
         scanning = true;
-        printMessage( "All hooks started." );
+        chat.printMessage( "All hooks started." );
     }
 
     function stopScanning() {
         hookManager.unhookAll();
         scanning = false;
-        printMessage( "All hooks stopped." );
+        chat.printMessage( "All hooks stopped." );
     }
 
     function useItem( item ) {
-        printMessage( `USE ITEM: ${item}` );
+        chat.printMessage( `USE ITEM: ${item}` );
         mod.toServer( "C_USE_ITEM", 3, {
             gameId: gameId,
             id: item,
@@ -695,8 +647,9 @@ module.exports = function utilityBox( mod ) {
                     typeName = "Unknown: " + event.type;
             }
             lastLocation = event;
-            if ( verbose ) printMessage( `${typeName} (${msToUTCTimeString( event.time )}) => ${event.loc}` );
+            if ( verbose ) chat.printMessage( `${typeName} (${ChatHelper.msToUTCTimeString( event.time )}) => ${event.loc}` );
         });
+
         /*
         uint64 gameId
         int32  id
@@ -712,44 +665,44 @@ module.exports = function utilityBox( mod ) {
         bool   unk4  # true?
         */
         hookManager.addTemplate( "item", "C_USE_ITEM", 3, event => {
-            printMessage( ":::::USE ITEM:::::" );
-            printMessage( "GameId: " + event.gameId );
-            printMessage( "ID: " + event.id );
-            printMessage( "DBID: " + event.dbid );
-            printMessage( "Target: " + event.target );
-            printMessage( "Amount: " + event.amount );
-            printMessage( "dest: " + JSON.stringify( event.dest ) );
-            printMessage( "loc: " + JSON.stringify( event.loc ) );
-            printMessage( "angle: " + event.w );
-            printMessage( "unk1: " + event.unk1 );
-            printMessage( "unk2: " + event.unk2 );
-            printMessage( "unk3: " + event.unk3 );
-            printMessage( "unk4: " + event.unk4 );
-            printMessage( "::::::::::::::::::" );
+            chat.printMessage( ":::::USE ITEM:::::" );
+            chat.printMessage( "GameId: " + event.gameId );
+            chat.printMessage( "ID: " + event.id );
+            chat.printMessage( "DBID: " + event.dbid );
+            chat.printMessage( "Target: " + event.target );
+            chat.printMessage( "Amount: " + event.amount );
+            chat.printMessage( "dest: " + JSON.stringify( event.dest ) );
+            chat.printMessage( "loc: " + JSON.stringify( event.loc ) );
+            chat.printMessage( "angle: " + event.w );
+            chat.printMessage( "unk1: " + event.unk1 );
+            chat.printMessage( "unk2: " + event.unk2 );
+            chat.printMessage( "unk3: " + event.unk3 );
+            chat.printMessage( "unk4: " + event.unk4 );
+            chat.printMessage( "::::::::::::::::::" );
         });
         //uint32 countdown # 10
         hookManager.addTemplate( "exit", "S_PREPARE_EXIT", 1, event => {
-            printMessage( `PREPARE EXIT countdown: ${event.countdown}s` );
+            chat.printMessage( `PREPARE EXIT countdown: ${event.countdown}s` );
         });
         //int32 time
         hookManager.addTemplate( "logout", "S_PREPARE_RETURN_TO_LOBBY", 1, event => {
-            printMessage( `LOGOUT time: ${event.time}` );
+            chat.printMessage( `LOGOUT time: ${event.time}` );
         });
         //# These are sent to the launcher prior to closing the game
         //int32 category
         //int32 code
         hookManager.addTemplate( "exit", "S_EXIT", 3, event => {
-            printMessage( `EXIT category: "${event.category}", code: "${event.code}"` );
+            chat.printMessage( `EXIT category: "${event.category}", code: "${event.code}"` );
         });
 
-        hookManager.addTemplate( "exit", "C_EXIT", 1, e => printMessage( "C_EXIT" ) );
+        hookManager.addTemplate( "exit", "C_EXIT", 1, e => chat.printMessage( "C_EXIT" ) );
 
-        hookManager.addTemplate( "logout", "C_RETURN_TO_LOBBY", 1, e => printMessage( "C_RETURN_TO_LOBBY" ) );
-        hookManager.addTemplate( "logout", "S_RETURN_TO_LOBBY", 1, e => printMessage( "S_RETURN_TO_LOBBY" ) );
-        hookManager.addTemplate( "channel", "S_SELECT_CHANNEL", 1, e => printMessage( "S_SELECT_CHANNEL" ) );
+        hookManager.addTemplate( "logout", "C_RETURN_TO_LOBBY", 1, e => chat.printMessage( "C_RETURN_TO_LOBBY" ) );
+        hookManager.addTemplate( "logout", "S_RETURN_TO_LOBBY", 1, e => chat.printMessage( "S_RETURN_TO_LOBBY" ) );
+        hookManager.addTemplate( "channel", "S_SELECT_CHANNEL", 1, e => chat.printMessage( "S_SELECT_CHANNEL" ) );
         // int32 seconds
         hookManager.addTemplate( "channel", "S_PREPARE_SELECT_CHANNEL", 1, e =>
-            printMessage( `S_SELECT_CHANNEL seconds=${e.seconds}` )
+            chat.printMessage( `S_SELECT_CHANNEL seconds=${e.seconds}` )
         );
         // count  channels
         // offset channels
@@ -760,49 +713,49 @@ module.exports = function utilityBox( mod ) {
         // - int32 channel
         // - int32 density
         hookManager.addTemplate( "channel", "S_LIST_CHANNEL", 1, e => {
-            printMessage( `S_LIST_CHANNEL ${e.count} channel${e.count > 1 ? "s" : ""} in ${e.zone}. unk=${e.unk}` );
-            printMessage( "channel: density" );
+            chat.printMessage( `S_LIST_CHANNEL ${e.count} channel${e.count > 1 ? "s" : ""} in ${e.zone}. unk=${e.unk}` );
+            chat.printMessage( "channel: density" );
             for ( let c of e.channels ) {
-                printMessage( `${c.channel}: ${c.density}` );
+                chat.printMessage( `${c.channel}: ${c.density}` );
             }
         });
         // int32 unk
         // int32 zone
         hookManager.addTemplate( "channel", "C_LIST_CHANNEL", 1, e =>
-            printMessage( `C_LIST_CHANNEL in ${e.zone}. unk=${e.unk}` )
+            chat.printMessage( `C_LIST_CHANNEL in ${e.zone}. unk=${e.unk}` )
         );
         // int32 zone    # If changed, triggers the "Moving to channel X." message
         // int32 channel # ^ See above
         // int32 density # 0 = Low, 1 = Medium, 2 = High
         // int32 type    # 1 = Multiple channels with density, 2 = Cannot change channel, 3 = Hidden (single channel)
         hookManager.addTemplate( "channel", "S_CURRENT_CHANNEL", 2, e => {
-            printMessage( `S_CURRENT_CHANNEL ${e.channel}(ch): ${e.density}(density) in ${e.zone}. unk=${e.unk}` );
+            chat.printMessage( `S_CURRENT_CHANNEL ${e.channel}(ch): ${e.density}(density) in ${e.zone}. unk=${e.unk}` );
             switch ( e.type ) {
                 case 1:
-                    printMessage( "Multiple channels with density" );
+                    chat.printMessage( "Multiple channels with density" );
                     break;
                 case 2:
-                    printMessage( "Cannot change channel" );
+                    chat.printMessage( "Cannot change channel" );
                     break;
                 case 3:
-                    printMessage( "Hidden (single channel)" );
+                    chat.printMessage( "Hidden (single channel)" );
                     break;
                 default:
-                    printMessage( `Unknown type: ${e.type}` );
+                    chat.printMessage( `Unknown type: ${e.type}` );
             }
         });
         // int32 unk
         // int32 zone
         // int32 channel
         hookManager.addTemplate( "channel", "C_SELECT_CHANNEL", 1, e => {
-            printMessage( `C_SELECT_CHANNEL ${e.channel}(ch) in ${e.zone}. unk=${e.unk}` );
+            chat.printMessage( `C_SELECT_CHANNEL ${e.channel}(ch) in ${e.zone}. unk=${e.unk}` );
         });
         // byte unk # 0-1, not sure what it means
         hookManager.addTemplate( "channel", "S_CANCEL_SELECT_CHANNEL", 1, e => {
-            printMessage( `S_CANCEL_SELECT_CHANNEL unk=${e.unk}` );
+            chat.printMessage( `S_CANCEL_SELECT_CHANNEL unk=${e.unk}` );
         });
         hookManager.addTemplate( "channel", "C_CANCEL_SELECT_CHANNEL", 1, e => {
-            printMessage( `C_CANCEL_SELECT_CHANNEL` );
+            chat.printMessage( `C_CANCEL_SELECT_CHANNEL` );
         });
 
         /*
@@ -837,12 +790,12 @@ module.exports = function utilityBox( mod ) {
                 s += ` (count: ${item.amount}, cd: ${item.cooldown})\n`;
             }
             s += "]";
-            printMessage( s );
+            chat.printMessage( s );
         });
 
         /* int32 slot */
         hookManager.addTemplate( "elite-bar", "C_PCBANGINVENTORY_USE_SLOT", 1, event => {
-            printMessage( "Use elite-bar slot " + event.slot );
+            chat.printMessage( "Use elite-bar slot " + event.slot );
         });
 
         /*
@@ -871,7 +824,7 @@ module.exports = function utilityBox( mod ) {
                 s += ` (cd: ${item.cooldown})\n`;
             }
             s += "]";
-            printMessage( s );
+            chat.printMessage( s );
         });
 
         /*
@@ -893,7 +846,7 @@ module.exports = function utilityBox( mod ) {
                 default:
                     s += `# unknown (${event.type})`;
             }
-            printMessage( s );
+            chat.printMessage( s );
         });
         /*
         # majorPatchVersion >= 75
@@ -909,7 +862,9 @@ module.exports = function utilityBox( mod ) {
         */
         hookManager.addTemplate( "buff", "S_ABNORMALITY_BEGIN", 3, e => {
             if ( mod.game.me.is( e.target ) )
-                printMessage( `Buff start: ${e.id} (dur:${e.duration}, stacks:${e.stacks},${e.source}->${e.target})` );
+                chat.printMessage(
+                    `Buff start: ${e.id} (dur:${e.duration}, stacks:${e.stacks},${e.source}->${e.target})`
+                );
         });
 
         /*
@@ -921,7 +876,7 @@ module.exports = function utilityBox( mod ) {
         */
         hookManager.addTemplate( "buff", "S_ABNORMALITY_REFRESH", 1, e => {
             if ( mod.game.me.is( e.target ) )
-                printMessage( `Buff refresh: ${e.id} (dur:${e.duration}, stacks:${e.stacks},->${e.target})` );
+                chat.printMessage( `Buff refresh: ${e.id} (dur:${e.duration}, stacks:${e.stacks},->${e.target})` );
         });
 
         /*
@@ -929,7 +884,7 @@ module.exports = function utilityBox( mod ) {
         uint32 id
         */
         hookManager.addTemplate( "buff", "S_ABNORMALITY_END", 1, e => {
-            if ( mod.game.me.is( e.target ) ) printMessage( `Buff end: ${e.id} (->${e.target})` );
+            if ( mod.game.me.is( e.target ) ) chat.printMessage( `Buff end: ${e.id} (->${e.target})` );
         });
 
         /*
@@ -941,7 +896,7 @@ module.exports = function utilityBox( mod ) {
         */
         hookManager.addTemplate( "buff", "S_ABNORMALITY_FAIL", 1, e => {
             if ( mod.game.me.is( e.target ) )
-                printMessage( `Buff end: ${e.id} (->${e.target},unk1:${e.unk1},unk2:${e.unk2},unk3:${e.unk3})` );
+                chat.printMessage( `Buff end: ${e.id} (->${e.target},unk1:${e.unk1},unk2:${e.unk2},unk3:${e.unk3})` );
         });
         /*
         offset authorName
@@ -956,7 +911,7 @@ module.exports = function utilityBox( mod ) {
         string message
         */
         hookManager.addTemplate( "chat", "S_CHAT", 2, e => {
-            printMessage( e.message );
+            chat.printMessage( e.message );
         });
         /*
         offset authorName
@@ -972,7 +927,7 @@ module.exports = function utilityBox( mod ) {
         string message
         */
         hookManager.addTemplate( "chat", "S_WHISPER", 2, e => {
-            printMessage( e.message );
+            chat.printMessage( e.message );
         });
         /*
         offset authorName
@@ -984,7 +939,7 @@ module.exports = function utilityBox( mod ) {
         string message
         */
         hookManager.addTemplate( "chat", "S_PRIVATE_CHAT", 1, e => {
-            printMessage( e.message );
+            chat.printMessage( e.message );
         });
 
         /*
@@ -999,7 +954,7 @@ module.exports = function utilityBox( mod ) {
         string message
         */
         hookManager.addTemplate( "chat", "S_PARTY_MATCH_LINK", 1, e => {
-            printMessage( e.name + " " + e.message );
+            chat.printMessage( e.name + " " + e.message );
         });
 
         /*
@@ -1011,24 +966,24 @@ module.exports = function utilityBox( mod ) {
         - int32 value
         */
         hookManager.addTemplate( "version", "C_CHECK_VERSION", 1, e => {
-            printMessage( "Versions:" );
+            chat.printMessage( "Versions:" );
             for ( let v of e.version ) {
-                printMessage( `<font color="${COLOR_VALUE}">${JSON.stringify( v )}</font>` );
+                chat.printMessage( `<font color="${COLOR_VALUE}">${JSON.stringify( v )}</font>` );
             }
         });
         /* byte ok */
         hookManager.addTemplate( "version", "S_CHECK_VERSION", 1, e => {
-            printMessage( `Version answer: <font color="${COLOR_VALUE}">${e.ok}</font>` );
+            chat.printMessage( `Version answer: <font color="${COLOR_VALUE}">${e.ok}</font>` );
         });
 
         /* int32 id */
         hookManager.addTemplate( "daily", "C_COMPLETE_DAILY_EVENT", 1, e => {
-            printMessage( `Returned: ${e.id}.` );
+            chat.printMessage( `Returned: ${e.id}.` );
         });
 
         /* int32 id */
         hookManager.addTemplate( "daily", "S_COMPLETE_EVENT_MATCHING_QUEST", 1, e => {
-            printMessage( `Completed: ${e.id}.` );
+            chat.printMessage( `Completed: ${e.id}.` );
         });
         /*
         int32 expDifference
@@ -1061,7 +1016,7 @@ module.exports = function utilityBox( mod ) {
                     - e.dailyExp}</font>] )==> <font color="${COLOR_VALUE}">${e.exp}</font>`
             );
             messages.map( x => {
-                printMessage( x );
+                chat.printMessage( x );
             });
         });
 
@@ -1077,7 +1032,7 @@ module.exports = function utilityBox( mod ) {
                 .text( e.totalPoints );
             msg.color().text( "Gained?: " );
             msg.color( COLOR_VALUE ).text( e.gainedPoints );
-            if ( verbose ) printMessage( msg.toHtml() );
+            if ( verbose ) chat.printMessage( msg.toHtml() );
         });
 
         /*
@@ -1117,7 +1072,7 @@ module.exports = function utilityBox( mod ) {
             //     msg.push(`<font color="${COLOR_VALUE}">${p.id}</font>: <font color="${COLOR_VALUE}">${p.level}</font>`);
             // }
             messages.map( x => {
-                printMessage( x );
+                chat.printMessage( x );
             });
         });
 
@@ -1128,15 +1083,15 @@ module.exports = function utilityBox( mod ) {
         // ?
         hookManager.addTemplate( "player-ep", "S_SHOW_USER_EP_INFO", 1, e => {
             let msg = `Show user EP-INFO.`;
-            // logger["player"].debug(cleanString(msg));
-            printMessage( msg );
+            // logger["player"].debug(ChatHelper.cleanString(msg));
+            chat.printMessage( msg );
         });
 
         // int32 limit
         hookManager.addTemplate( "player-ep", "S_CHANGE_EP_EXP_DAILY_LIMIT", 1, e => {
             let msg = `Change Daily limit to <font color="${COLOR_VALUE}">${e.limit}</font>`;
-            // logger["player"].debug(cleanString(msg));
-            printMessage( msg );
+            // logger["player"].debug(ChatHelper.cleanString(msg));
+            chat.printMessage( msg );
         });
     }
 
@@ -1180,44 +1135,7 @@ module.exports = function utilityBox( mod ) {
                 ]
             });
         }
-        messages = messages.map( x => cleanString( x ) );
+        messages = messages.map( x => ChatHelper.cleanString( x ) );
         logger[logName].debug( messages.join( ";" ) );
-    }
-
-    //#################################################
-    //  Helper functions
-    //#################################################
-    // Prints the message in game and in console with local time stamp.
-    // @return No return.
-    function printMessage( message, consoleOut = true ) {
-        let timedMessage = `[${new Date().toLocaleTimeString()}]: ${message}`;
-        command.message( timedMessage );
-        if ( consoleOut ) console.log( cleanString( timedMessage ) );
-    }
-    // @return Returns a html-tag-free string.
-    function cleanString( dirtyString ) {
-        return dirtyString.replace( /<[^>]*>/g, "" );
-    }
-    // Converts a time in milliseconds to UTC time string.
-    // @return Returns the time in the format: hh:MM:SS
-    function msToUTCTimeString( timeInMs ) {
-        let secs = Math.floor( timeInMs / 1000.0 ),
-            mins = Math.floor( secs / 60.0 ),
-            h = Math.floor( mins / 60.0 ),
-            s = secs % 60,
-            m = mins % 60;
-        s = addPrefixZero( s );
-        m = addPrefixZero( m );
-        h = addPrefixZero( h );
-        return `${h}:${m}:${s}`;
-    }
-    // Adds a zero to numbers smaller than 10.
-    // @return Returns the number as string with 0 prefix or
-    // the number if no prefix needed.
-    function addPrefixZero( num ) {
-        if ( num < 10 ) {
-            num = "0" + num;
-        }
-        return num;
     }
 };
