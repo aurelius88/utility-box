@@ -1,7 +1,6 @@
-const bunyan = require("bunyan");
-const path = require("path");
-const fs = require("fs");
-
+const bunyan = require( "bunyan" );
+const path = require( "path" );
+const fs = require( "fs" );
 
 const COLOR_ENABLE = "#56B4E9";
 const COLOR_DISABLE = "#e64500";
@@ -11,77 +10,72 @@ const COLOR_HIGHLIGHT = "#81ee7b";
 const SOFT_CAP_MOD_START = 0.88945;
 const SOFT_CAP_MOD_END = SOFT_CAP_MOD_START + 0.2;
 
-function getJsonData(pathToFile) {
+function getJsonData( pathToFile ) {
     try {
-        return JSON.parse(fs.readFileSync(path.join(__dirname, pathToFile)));
-    } catch (e) {
+        return JSON.parse( fs.readFileSync( path.join( __dirname, pathToFile ) ) );
+    } catch ( e ) {
         return undefined;
     }
 }
 
-function saveJsonData(pathToFile, data) {
-    fs.writeFileSync(
-        path.join(__dirname, pathToFile),
-        JSON.stringify(data, null, 4)
-    );
+function saveJsonData( pathToFile, data ) {
+    fs.writeFileSync( path.join( __dirname, pathToFile ), JSON.stringify( data, null, 4 ) );
 }
 
-function readOpcodes(rawFile, jsonFile, map) {
-    let data = getJsonData(jsonFile);
-    let newData = Array.from(readOpcodesRaw(rawFile));
-    if (!data) data = newData;
-    else data.concat(newData);
-    if (map) {
-        data.map(x => map.set(x[0], x[1]));
+function readOpcodes( rawFile, jsonFile, map ) {
+    let data = getJsonData( jsonFile );
+    let newData = Array.from( readOpcodesRaw( rawFile ) );
+    if ( !data ) data = newData;
+    else data.concat( newData );
+    if ( map ) {
+        data.map( x => map.set( x[0], x[1]) );
     } else {
-        map = new Map(data);
+        map = new Map( data );
     }
     return map;
 }
 
-function readOpcodesRaw(pathToFile) {
+function readOpcodesRaw( pathToFile ) {
     let map = new Map();
-    let lines = fs
-        .readFileSync(path.join(__dirname, pathToFile), "utf8")
-        .split(/\s*\r?\n\s*/);
+    let lines = fs.readFileSync( path.join( __dirname, pathToFile ), "utf8" ).split( /\s*\r?\n\s*/ );
     // init OPCODE_MAP
-    for (let line of lines) {
-        let divided = line.split(/\s*=\s*|\s*\s\s*/);
-        if (divided.length >= 2) {
-            map.set(parseInt(divided[1], 10), divided[0]);
+    for ( let line of lines ) {
+        let divided = line.split( /\s*=\s*|\s*\s\s*/ );
+        if ( divided.length >= 2 ) {
+            map.set( parseInt( divided[1], 10 ), divided[0]);
         }
     }
     return map;
 }
 
-function groupOpcodes(map) {
+function groupOpcodes( map ) {
     let groupedMap = new Map();
-    for (let e of map) {
-        let divisionPos = e[1].indexOf("_");
-        let group = e[1].slice(0, divisionPos);
-        if (groupedMap.has(group)) {
-            groupedMap.get(group).push(e[0]);
+    for ( let e of map ) {
+        let divisionPos = e[1].indexOf( "_" );
+        let group = e[1].slice( 0, divisionPos );
+        if ( groupedMap.has( group ) ) {
+            groupedMap.get( group ).push( e[0]);
         } else {
-            groupedMap.set(group, [e[0]]);
+            groupedMap.set( group, [e[0]]);
         }
     }
     return groupedMap;
 }
 
-module.exports = function utilityBox(mod) {
+module.exports = function utilityBox( mod ) {
     mod.game.initialize(["me", "contract"]);
     const ROOT_COMMAND = "util";
     const POSITIONS_FILE_NAME = "positions.json";
-    const OPCODES_PATH = path.join(__dirname, "opcodes");
-    const GENERAL_LOG_PATH = path.join(__dirname, "logs");
+    const OPCODES_PATH = path.join( __dirname, "opcodes" );
+    const GENERAL_LOG_PATH = path.join( __dirname, "logs" );
     const command = mod.command;
     const HookManager = mod.require["util-lib"]["hook-manager"];
-    const hookManager = new HookManager(mod);
+    const hookManager = new HookManager( mod );
     const MessageBuilder = mod.require["util-lib"]["message-builder"];
     const msg = new MessageBuilder();
     const logger = {};
-    if (!fs.existsSync(OPCODES_PATH)) fs.mkdirSync(OPCODES_PATH);
-    if (!fs.existsSync(GENERAL_LOG_PATH)) fs.mkdirSync(GENERAL_LOG_PATH);
+    if ( !fs.existsSync( OPCODES_PATH ) ) fs.mkdirSync( OPCODES_PATH );
+    if ( !fs.existsSync( GENERAL_LOG_PATH ) ) fs.mkdirSync( GENERAL_LOG_PATH );
 
     let gameId = null,
         scanning = false,
@@ -90,9 +84,9 @@ module.exports = function utilityBox(mod) {
         verbose = false,
         version = mod.dispatch.protocolVersion;
 
-    const POSITIONS_DATA = getJsonData(POSITIONS_FILE_NAME);
-    if (Array.isArray(POSITIONS_DATA)) {
-        positions = new Map(POSITIONS_DATA);
+    const POSITIONS_DATA = getJsonData( POSITIONS_FILE_NAME );
+    if ( Array.isArray( POSITIONS_DATA ) ) {
+        positions = new Map( POSITIONS_DATA );
     }
     const OPCODE_JSON = "opcodes.json";
     const GROUPED_OPCODE_JSON = "groups.json";
@@ -100,7 +94,7 @@ module.exports = function utilityBox(mod) {
 
     OPCODE_FILE_NAME = `../../../node_modules/tera-data/map_base/protocol.${version}.map`;
     OPCODE_MAP = mod.dispatch.protocolMap.code; // opcode -> name
-    GROUPED_OPCODE_MAP = groupOpcodes(OPCODE_MAP); // group (S,C,DBS,...) -> opcode
+    GROUPED_OPCODE_MAP = groupOpcodes( OPCODE_MAP ); // group (S,C,DBS,...) -> opcode
 
     //saveJsonData(OPCODE_JSON, Array.from(OPCODE_MAP));
     //saveJsonData(GROUPED_OPCODE_JSON, Array.from(GROUPED_OPCODE_MAP));
@@ -108,19 +102,19 @@ module.exports = function utilityBox(mod) {
     initGroupedOpcodeHooks();
     initFixHooks();
 
-    hookManager.hookGroup("player-ep-log");
+    hookManager.hookGroup( "player-ep-log" );
 
-    mod.game.on("enter_game", () => {
+    mod.game.on( "enter_game", () => {
         gameId = mod.game.me.gameId;
     });
 
     // dispatch.game.on( 'leave_game', () => {
     // } );
 
-    process.on("exit", () => {
+    process.on( "exit", () => {
         let posData = [];
-        positions.forEach((v, k) => posData.push([k, v]));
-        saveJsonData(POSITIONS_FILE_NAME, posData);
+        positions.forEach( ( v, k ) => posData.push([k, v]) );
+        saveJsonData( POSITIONS_FILE_NAME, posData );
         stopScanning();
     });
 
@@ -149,18 +143,14 @@ module.exports = function utilityBox(mod) {
         },
         hook: {
             add: {
-                $default: function(group, hookName, version, ...vars) {
-                    if (arguments.length < 4)
-                        return printHelpList(this.hook.add);
-                    if (
-                        typeof version == "string" &&
-                        !/raw|\*|[0-9]+/.test(version)
-                    ) {
+                $default: function( group, hookName, version, ...vars ) {
+                    if ( arguments.length < 4 ) return printHelpList( this.hook.add );
+                    if ( typeof version == "string" && !/raw|\*|[0-9]+/.test( version ) ) {
                         return printMessage(
                             `Illegal version "<font color "${COLOR_HIGHLIGHT}">${version}</font>". Should be "<font color "${COLOR_HIGHLIGHT}">*</font>", "<font color "${COLOR_HIGHLIGHT}">raw</font>" or a positive integer number <font color "${COLOR_HIGHLIGHT}">0,1,2,...</font>.`
                         );
                     }
-                    if (!Array.from(OPCODE_MAP.values()).includes(hookName))
+                    if ( !Array.from( OPCODE_MAP.values() ).includes( hookName ) )
                         return printMessage(
                             `There is no hook named "<font color="${COLOR_HIGHLIGHT}">${hookName}</font>".`
                         );
@@ -171,31 +161,22 @@ module.exports = function utilityBox(mod) {
                         )}`
                     );
 
-                    let result = hookManager.addTemplate(
-                        group,
-                        hookName,
-                        version,
-                        e => {
-                            // used in eval
-                            for (let v of vars) {
-                                let value = eval("e." + v);
-                                if(typeof value == "bigint") value = value.toString();
-                                printMessage(
-                                    v + " = " + JSON.stringify(
-                                        value
-                                    )
-                                );
-                            }
+                    let result = hookManager.addTemplate( group, hookName, version, e => {
+                        // used in eval
+                        for ( let v of vars ) {
+                            let value = eval( "e." + v );
+                            if ( typeof value == "bigint" ) value = value.toString();
+                            printMessage( v + " = " + JSON.stringify( value ) );
                         }
-                    );
-                    if (!result.group) {
-                        printMessage("Hook does already exist.");
+                    });
+                    if ( !result.group ) {
+                        printMessage( "Hook does already exist." );
                     }
                 }
             },
             remove: {
-                id: function(group, id) {
-                    if (hookManager.removeTemplateAt(group, id)) {
+                id: function( group, id ) {
+                    if ( hookManager.removeTemplateAt( group, id ) ) {
                         printMessage(
                             `Template id <font color="${COLOR_VALUE}">${id}</font> in <font color="${COLOR_VALUE}">${group}</font> successfully removed.`
                         );
@@ -205,55 +186,51 @@ module.exports = function utilityBox(mod) {
                         );
                     }
                 },
-                $default: function(name, group) {
-                    if (!name) printHelpList(this.hook.remove);
-                    if (hookManager.removeTempletByName(name, group)) {
+                $default: function( name, group ) {
+                    if ( !name ) printHelpList( this.hook.remove );
+                    if ( hookManager.removeTempletByName( name, group ) ) {
                         printMessage(
                             `Template named <font color="${COLOR_VALUE}">${name}</font> ${
-                                group
-                                    ? `in <font color="${COLOR_VALUE}">${group}</font> `
-                                    : ""
+                                group ? `in <font color="${COLOR_VALUE}">${group}</font> ` : ""
                             }successfully removed.`
                         );
                     }
                 }
             },
             $default() {
-                printHelpList(this.hook);
+                printHelpList( this.hook );
             }
         },
         scan: {
             raw: {
-                $default: function(opcode) {
-                    if (!opcode) rawScan();
-                    else scanOpcode(opcode);
+                $default: function( opcode ) {
+                    if ( !opcode ) rawScan();
+                    else scanOpcode( opcode );
                 }
             },
             verbose: {
                 $default: switchVerbose
             },
-            $default: function(...groupNameParts) {
-                if (!groupNameParts || !groupNameParts.length) switchScanning();
-                else switchGroup(groupNameParts);
+            $default: function( ...groupNameParts ) {
+                if ( !groupNameParts || !groupNameParts.length ) switchScanning();
+                else switchGroup( groupNameParts );
             }
         },
         pos: {
             save: {
-                $default(...nameParts) {
-                    if (!nameParts || !nameParts.length)
-                        return printHelpList(this.pos.save);
+                $default( ...nameParts ) {
+                    if ( !nameParts || !nameParts.length ) return printHelpList( this.pos.save );
                     let name = "";
-                    for (let i = 0; i < nameParts.length; i++) {
+                    for ( let i = 0; i < nameParts.length; i++ ) {
                         name += nameParts[i];
-                        if (i < nameParts.length - 1) name += " ";
+                        if ( i < nameParts.length - 1 ) name += " ";
                     }
-                    let illegalCommandIndex = illegalPosCommands.indexOf(name);
-                    if (illegalCommandIndex > -1) {
+                    let illegalCommandIndex = illegalPosCommands.indexOf( name );
+                    if ( illegalCommandIndex > -1 ) {
                         let illegalCommands = "";
-                        for (let i = 0; i < illegalPosCommands.length; i++) {
+                        for ( let i = 0; i < illegalPosCommands.length; i++ ) {
                             illegalCommands += illegalPosCommands[i];
-                            if (i < illegalPosCommands.length - 1)
-                                illegalCommands += ", ";
+                            if ( i < illegalPosCommands.length - 1 ) illegalCommands += ", ";
                         }
                         printMessage(
                             `Position named "<font color="${COLOR_HIGHLIGHT}">${
@@ -261,7 +238,7 @@ module.exports = function utilityBox(mod) {
                             }</font>", but you cannot name your position to one of these:<font color="${COLOR_HIGHLIGHT}"> ${illegalCommands}</font>. Please choose another name.`
                         );
                     } else {
-                        savePosition(name);
+                        savePosition( name );
                     }
                 }
             },
@@ -269,18 +246,15 @@ module.exports = function utilityBox(mod) {
                 $default: printPositions
             },
             delete: {
-                $default(...nameParts) {
-                    if (!nameParts || !nameParts.length)
-                        return printHelpList(this.pos.delete);
+                $default( ...nameParts ) {
+                    if ( !nameParts || !nameParts.length ) return printHelpList( this.pos.delete );
                     let name = "";
-                    for (let i = 0; i < nameParts.length; i++) {
+                    for ( let i = 0; i < nameParts.length; i++ ) {
                         name += nameParts[i];
-                        if (i < nameParts.length - 1) name += " ";
+                        if ( i < nameParts.length - 1 ) name += " ";
                     }
-                    if (positions.delete(name)) {
-                        printMessage(
-                            `Position "<font colot="${COLOR_HIGHLIGHT}">${name}</font>" deleted.`
-                        );
+                    if ( positions.delete( name ) ) {
+                        printMessage( `Position "<font colot="${COLOR_HIGHLIGHT}">${name}</font>" deleted.` );
                     } else {
                         printMessage(
                             `There is no position with name "<font color="${COLOR_HIGHLIGHT}">${name}</font>".`
@@ -292,11 +266,10 @@ module.exports = function utilityBox(mod) {
                 $default: positions.clear
             },
             $default() {
-                if (lastLocation && lastLocation.loc !== undefined) {
-                    printMessage(`Current Position:  ${lastLocation.loc}`);
+                if ( lastLocation && lastLocation.loc !== undefined ) {
+                    printMessage( `Current Position:  ${lastLocation.loc}` );
                 } else {
-                    if(!hookManager.hasActiveGroup("movement"))
-                        switchGroup("movement");
+                    if ( !hookManager.hasActiveGroup( "movement" ) ) switchGroup( "movement" );
                     printMessage(
                         "No position, yet. Please move one step or jump to get your position. And try it again."
                     );
@@ -304,14 +277,12 @@ module.exports = function utilityBox(mod) {
             }
         },
         use: {
-            $default(arg) {
-                if (arg !== undefined) {
-                    printMessage(`arg1 type: ${typeof arg1}`);
-                    useItem(arg);
+            $default( arg ) {
+                if ( arg !== undefined ) {
+                    printMessage( `arg1 type: ${typeof arg1}` );
+                    useItem( arg );
                 } else {
-                    printMessage(
-                        `Missing item id. e.g.: ${ROOT_COMMAND} use 200999`
-                    );
+                    printMessage( `Missing item id. e.g.: ${ROOT_COMMAND} use 200999` );
                 }
             }
         },
@@ -320,21 +291,17 @@ module.exports = function utilityBox(mod) {
         }
     };
 
-    function printHelpList(cmds = commands) {
-        printMessage(cmds.help.long());
-        printMessage("subcommands:");
-        for (let c in cmds) {
-            if (c != "$default") {
-                printMessage(
-                    `<font color="${COLOR_HIGHLIGHT}">${c}</font>  -  ${cmds[
-                        c
-                    ].help.short()}`
-                );
+    function printHelpList( cmds = commands ) {
+        printMessage( cmds.help.long() );
+        printMessage( "subcommands:" );
+        for ( let c in cmds ) {
+            if ( c != "$default" ) {
+                printMessage( `<font color="${COLOR_HIGHLIGHT}">${c}</font>  -  ${cmds[c].help.short()}` );
             }
         }
     }
     // initialize HELP
-    function helpObject(cmd, short, long) {
+    function helpObject( cmd, short, long ) {
         return {
             short() {
                 return short;
@@ -351,7 +318,7 @@ module.exports = function utilityBox(mod) {
                 }
             },
             $default() {
-                printHelpList(cmd);
+                printHelpList( cmd );
             }
         };
     }
@@ -465,233 +432,203 @@ module.exports = function utilityBox(mod) {
     );
 
     // init illegalPosCommands
-    for (let command in commands.pos) {
-        illegalPosCommands.push(command);
+    for ( let command in commands.pos ) {
+        illegalPosCommands.push( command );
     }
 
-    command.add(ROOT_COMMAND, commands, commands);
+    command.add( ROOT_COMMAND, commands, commands );
 
     let scannedCodes;
 
     function rawScan() {
         scannedCodes = [];
-        let result = hookManager.hook(
-            "raw",
-            "*",
-            "raw",
-            (code, data, fromServer, fake) => {
-                if (!scannedCodes.includes(code)) {
-                    printMessage(
-                        `${code}(${typeof code}) -> ${OPCODE_MAP.get(code)}`
-                    );
-                    scannedCodes.push(code);
-                }
+        let result = hookManager.hook( "raw", "*", "raw", ( code, data, fromServer, fake ) => {
+            if ( !scannedCodes.includes( code ) ) {
+                printMessage( `${code}(${typeof code}) -> ${OPCODE_MAP.get( code )}` );
+                scannedCodes.push( code );
             }
-        );
+        });
         let msg = "Scan raw packets ";
-        if (!result.hook) {
-            hookManager.unhookGroup("raw");
+        if ( !result.hook ) {
+            hookManager.unhookGroup( "raw" );
             msg += `<font color="${COLOR_DISABLE}">disabled</font>.`;
         } else {
             msg += `<font color="${COLOR_ENABLE}">enabled</font>.`;
         }
-        printMessage(msg);
+        printMessage( msg );
     }
 
-    function scanOpcode(opcode) {
-        let result = hookManager.hook(
-            "raw-opcode" + opcode,
-            "*",
-            "raw",
-            (code, data, fromServer, fake) => {
-                if (code === parseInt(opcode)) {
-                    let left = fake && fromServer ? "P" : "S";
-                    let arrow = fromServer ? "->" : "<-";
-                    let right = fake && !fromServer ? "P" : "C";
-                    printMessage(`${left} ${arrow} ${right} ${code}`);
-                    if (!logger[opcode]) {
-                        logger[opcode] = bunyan.createLogger({
-                            name: "opcode",
-                            streams: [
-                                {
-                                    path: path.join(
-                                        OPCODES_PATH,
-                                        opcode + ".log"
-                                    ),
-                                    level: "debug"
-                                }
-                            ]
-                        });
-                    }
-                    logger[opcode].debug({name : OPCODE_MAP[opcode] , data});
+    function scanOpcode( opcode ) {
+        let result = hookManager.hook( "raw-opcode" + opcode, "*", "raw", ( code, data, fromServer, fake ) => {
+            if ( code === parseInt( opcode ) ) {
+                let left = fake && fromServer ? "P" : "S";
+                let arrow = fromServer ? "->" : "<-";
+                let right = fake && !fromServer ? "P" : "C";
+                printMessage( `${left} ${arrow} ${right} ${code}` );
+                if ( !logger[opcode]) {
+                    logger[opcode] = bunyan.createLogger({
+                        name: "opcode",
+                        streams: [
+                            {
+                                path: path.join( OPCODES_PATH, opcode + ".log" ),
+                                level: "debug"
+                            }
+                        ]
+                    });
                 }
+                logger[opcode].debug({ name: OPCODE_MAP[opcode], data });
             }
-        );
+        });
         let msg = "";
-        if (!result.hook) {
+        if ( !result.hook ) {
             delete logger[opcode];
-            hookManager.unhookGroup("raw-opcode" + opcode);
+            hookManager.unhookGroup( "raw-opcode" + opcode );
             msg = `<font color="${COLOR_DISABLE}">Stop</font>`;
         } else {
             msg = `<font color="${COLOR_ENABLE}">Start</font>`;
         }
-        printMessage(
-            `${msg} scanning for <font color="${COLOR_VALUE}">${opcode}</font>.`
-        );
+        printMessage( `${msg} scanning for <font color="${COLOR_VALUE}">${opcode}</font>.` );
     }
 
     /**
      * @args groupNameParts
      * @returns true, if successful. Otherwise false.
      */
-    function switchGroup(groupNameParts) {
-        if (!groupNameParts || !groupNameParts.length) return false;
+    function switchGroup( groupNameParts ) {
+        if ( !groupNameParts || !groupNameParts.length ) return false;
         let groupName = "";
-        if(Array.isArray(groupNameParts)) {
-            for (let i = 0; i < groupNameParts.length; i++) {
+        if ( Array.isArray( groupNameParts ) ) {
+            for ( let i = 0; i < groupNameParts.length; i++ ) {
                 groupName += groupNameParts[i];
-                if (i < groupNameParts.length - 1) groupName += " ";
+                if ( i < groupNameParts.length - 1 ) groupName += " ";
             }
         } else {
             groupName = groupNameParts;
         }
-        if (groupName == "") {
-            printMessage("Please enter a group name.");
-            printMessage(this.scan.help.long());
+        if ( groupName == "" ) {
+            printMessage( "Please enter a group name." );
+            printMessage( this.scan.help.long() );
             return false;
         }
-        if (!hookManager.hasGroup(groupName)) {
-            printMessage("There is no group named " + groupName);
+        if ( !hookManager.hasGroup( groupName ) ) {
+            printMessage( "There is no group named " + groupName );
             return false;
         }
-        let isActive = hookManager.hasActiveGroup(groupName);
-        if (isActive) hookManager.unhookGroup(groupName);
-        else hookManager.hookGroup(groupName);
+        let isActive = hookManager.hasActiveGroup( groupName );
+        if ( isActive ) hookManager.unhookGroup( groupName );
+        else hookManager.hookGroup( groupName );
         printMessage(
-            groupName +
-                (!isActive
-                    ? ` <font color="${COLOR_ENABLE}">enabled</font>.`
-                    : ` <font color="${COLOR_DISABLE}">disabled</font>.`)
+            groupName
+                + ( !isActive ?
+                    ` <font color="${COLOR_ENABLE}">enabled</font>.`
+                    : ` <font color="${COLOR_DISABLE}">disabled</font>.` )
         );
         return true;
     }
 
     function switchScanning() {
         scanning = !scanning;
-        if (scanning) startScanning();
+        if ( scanning ) startScanning();
         else stopScanning();
     }
 
     function switchVerbose() {
         verbose = !verbose;
         printMessage(
-            "Verbose mode " +
-                (verbose
-                    ? '<font color="#56B4E9">enabled</font>.'
-                    : '<font color="#E69F00">disabled</font>.')
+            "Verbose mode "
+                + ( verbose ? '<font color="#56B4E9">enabled</font>.' : '<font color="#E69F00">disabled</font>.' )
         );
     }
 
-    function savePosition(name) {
-        if (positions.has(name)) {
-            printMessage(
-                "There is already a position saved with this name. Choose another name."
-            );
+    function savePosition( name ) {
+        if ( positions.has( name ) ) {
+            printMessage( "There is already a position saved with this name. Choose another name." );
             return false;
         }
         let pos = lastLocation.loc;
-        positions.set(name, pos);
-        printMessage(`Position "${JSON.stringify(pos)}" saved as "${name}".`);
+        positions.set( name, pos );
+        printMessage( `Position "${JSON.stringify( pos )}" saved as "${name}".` );
         return true;
     }
 
-    function printPosition(value, key) {
-        printMessage(`"${key}": ${JSON.stringify(value)}`);
+    function printPosition( value, key ) {
+        printMessage( `"${key}": ${JSON.stringify( value )}` );
     }
 
     function printPositions() {
-        printMessage(positions.size + " positions saved:");
-        positions.forEach(printPosition);
+        printMessage( positions.size + " positions saved:" );
+        positions.forEach( printPosition );
     }
 
     function printGroups() {
-        printMessage("Available hook groups:");
-        for (let group of hookManager.getHookTemplates().keys()) {
-            printMessage(group);
+        printMessage( "Available hook groups:" );
+        for ( let group of hookManager.getHookTemplates().keys() ) {
+            printMessage( group );
         }
     }
 
-    function printTemplates(group) {
-        if (group) {
-            if (!hookManager.hasGroup(group)) {
-                printMessage(
-                    `There is no such group <font color="${COLOR_VALUE}">${group}</font>.`
-                );
+    function printTemplates( group ) {
+        if ( group ) {
+            if ( !hookManager.hasGroup( group ) ) {
+                printMessage( `There is no such group <font color="${COLOR_VALUE}">${group}</font>.` );
             }
-            printMessage(
-                `Templates of group <font color="${COLOR_HIGHLIGHT}">${group}</font>:`
-            );
-            let groupTemps = hookManager.getHookTemplates().get(group);
-            for (let i = 0; i < groupTemps.length; i++) {
-                printMessage(`${i}: ${JSON.stringify(groupTemps[i][0])}`);
+            printMessage( `Templates of group <font color="${COLOR_HIGHLIGHT}">${group}</font>:` );
+            let groupTemps = hookManager.getHookTemplates().get( group );
+            for ( let i = 0; i < groupTemps.length; i++ ) {
+                printMessage( `${i}: ${JSON.stringify( groupTemps[i][0])}` );
             }
         } else {
-            for (let g of hookManager.getHookTemplates().keys()) {
-                printTemplates(g);
+            for ( let g of hookManager.getHookTemplates().keys() ) {
+                printTemplates( g );
             }
         }
     }
 
     function printActiveGroups() {
-        printMessage("Active hook groups:");
-        for (let group of hookManager.getActiveHooks().keys()) {
-            if (hookManager.activeHooks.get(group).length) {
-                printMessage(group);
+        printMessage( "Active hook groups:" );
+        for ( let group of hookManager.getActiveHooks().keys() ) {
+            if ( hookManager.activeHooks.get( group ).length ) {
+                printMessage( group );
             }
         }
     }
 
     function printOpcodes() {
-        printMessage("Opcodes:");
+        printMessage( "Opcodes:" );
         let s = "";
         let size = OPCODE_MAP.size;
         let i = 0;
-        for (let name of OPCODE_MAP.values()) {
+        for ( let name of OPCODE_MAP.values() ) {
             s += name;
-            if (i < size - 1) s += ", ";
+            if ( i < size - 1 ) s += ", ";
             i++;
         }
-        printMessage(s);
+        printMessage( s );
     }
 
     function initGroupedOpcodeHooks() {
-        for (let item of GROUPED_OPCODE_MAP) {
-            hookManager.addTemplate(
-                item[0],
-                OPCODE_MAP.get(item[1]),
-                "*",
-                e => {
-                    printMessage(JSON.stringify(e));
-                }
-            );
+        for ( let item of GROUPED_OPCODE_MAP ) {
+            hookManager.addTemplate( item[0], OPCODE_MAP.get( item[1]), "*", e => {
+                printMessage( JSON.stringify( e ) );
+            });
         }
     }
 
     function startScanning() {
         hookManager.hookAll();
         scanning = true;
-        printMessage("All hooks started.");
+        printMessage( "All hooks started." );
     }
 
     function stopScanning() {
         hookManager.unhookAll();
         scanning = false;
-        printMessage("All hooks stopped.");
+        printMessage( "All hooks stopped." );
     }
 
-    function useItem(item) {
-        printMessage(`USE ITEM: ${item}`);
-        mod.toServer("C_USE_ITEM", 3, {
+    function useItem( item ) {
+        printMessage( `USE ITEM: ${item}` );
+        mod.toServer( "C_USE_ITEM", 3, {
             gameId: gameId,
             id: item,
             dbid: 0,
@@ -724,46 +661,41 @@ module.exports = function utilityBox(mod) {
         bool    inShuttle
         uint32  time # Operating System uptime (ms)
         */
-        hookManager.addTemplate("movement", "C_PLAYER_LOCATION", 5, event => {
+        hookManager.addTemplate( "movement", "C_PLAYER_LOCATION", 5, event => {
             let typeName = "";
-            switch (event.type) {
-            case 0:
-                typeName = "running";
-                break;
-            case 1:
-                typeName = "walking";
-                break;
-            case 2:
-                typeName = "falling";
-                break;
-            case 5:
-                typeName = "jumping";
-                break;
-            case 6:
-                typeName = "jumping interrupted";
-                break;
-            case 7:
-                typeName = "stop moving/landing";
-                break;
-            case 8:
-                typeName = "swimming";
-                break;
-            case 9:
-                typeName = "stop swimming";
-                break;
-            case 10:
-                typeName = "falling after jumping";
-                break;
-            default:
-                typeName = "Unknown: " + event.type;
+            switch ( event.type ) {
+                case 0:
+                    typeName = "running";
+                    break;
+                case 1:
+                    typeName = "walking";
+                    break;
+                case 2:
+                    typeName = "falling";
+                    break;
+                case 5:
+                    typeName = "jumping";
+                    break;
+                case 6:
+                    typeName = "jumping interrupted";
+                    break;
+                case 7:
+                    typeName = "stop moving/landing";
+                    break;
+                case 8:
+                    typeName = "swimming";
+                    break;
+                case 9:
+                    typeName = "stop swimming";
+                    break;
+                case 10:
+                    typeName = "falling after jumping";
+                    break;
+                default:
+                    typeName = "Unknown: " + event.type;
             }
             lastLocation = event;
-            if (verbose)
-                printMessage(
-                    `${typeName} (${msToUTCTimeString(event.time)}) => ${
-                        event.loc
-                    }`
-                );
+            if ( verbose ) printMessage( `${typeName} (${msToUTCTimeString( event.time )}) => ${event.loc}` );
         });
         /*
         uint64 gameId
@@ -779,42 +711,35 @@ module.exports = function utilityBox(mod) {
         uint32 unk3
         bool   unk4  # true?
         */
-        hookManager.addTemplate("item", "C_USE_ITEM", 3, event => {
-            printMessage(":::::USE ITEM:::::");
-            printMessage("GameId: " + event.gameId);
-            printMessage("ID: " + event.id);
-            printMessage("DBID: " + event.dbid);
-            printMessage("Target: " + event.target);
-            printMessage("Amount: " + event.amount);
-            printMessage("dest: " + JSON.stringify(event.dest));
-            printMessage("loc: " + JSON.stringify(event.loc));
-            printMessage("angle: " + event.w);
-            printMessage("unk1: " + event.unk1);
-            printMessage("unk2: " + event.unk2);
-            printMessage("unk3: " + event.unk3);
-            printMessage("unk4: " + event.unk4);
-            printMessage("::::::::::::::::::");
+        hookManager.addTemplate( "item", "C_USE_ITEM", 3, event => {
+            printMessage( ":::::USE ITEM:::::" );
+            printMessage( "GameId: " + event.gameId );
+            printMessage( "ID: " + event.id );
+            printMessage( "DBID: " + event.dbid );
+            printMessage( "Target: " + event.target );
+            printMessage( "Amount: " + event.amount );
+            printMessage( "dest: " + JSON.stringify( event.dest ) );
+            printMessage( "loc: " + JSON.stringify( event.loc ) );
+            printMessage( "angle: " + event.w );
+            printMessage( "unk1: " + event.unk1 );
+            printMessage( "unk2: " + event.unk2 );
+            printMessage( "unk3: " + event.unk3 );
+            printMessage( "unk4: " + event.unk4 );
+            printMessage( "::::::::::::::::::" );
         });
         //uint32 countdown # 10
-        hookManager.addTemplate("exit", "S_PREPARE_EXIT", 1, event => {
-            printMessage(`PREPARE EXIT countdown: ${event.countdown}s`);
+        hookManager.addTemplate( "exit", "S_PREPARE_EXIT", 1, event => {
+            printMessage( `PREPARE EXIT countdown: ${event.countdown}s` );
         });
         //int32 time
-        hookManager.addTemplate(
-            "logout",
-            "S_PREPARE_RETURN_TO_LOBBY",
-            1,
-            event => {
-                printMessage(`LOGOUT time: ${event.time}`);
-            }
-        );
+        hookManager.addTemplate( "logout", "S_PREPARE_RETURN_TO_LOBBY", 1, event => {
+            printMessage( `LOGOUT time: ${event.time}` );
+        });
         //# These are sent to the launcher prior to closing the game
         //int32 category
         //int32 code
-        hookManager.addTemplate("exit", "S_EXIT", 3, event => {
-            printMessage(
-                `EXIT category: "${event.category}", code: "${event.code}"`
-            );
+        hookManager.addTemplate( "exit", "S_EXIT", 3, event => {
+            printMessage( `EXIT category: "${event.category}", code: "${event.code}"` );
         });
 
         hookManager.addTemplate( "exit", "C_EXIT", 1, e => printMessage( "C_EXIT" ) );
@@ -843,7 +768,9 @@ module.exports = function utilityBox(mod) {
         });
         // int32 unk
         // int32 zone
-        hookManager.addTemplate( "channel", "C_LIST_CHANNEL", 1, e => printMessage( `C_LIST_CHANNEL in ${e.zone}. unk=${e.unk}` ) );
+        hookManager.addTemplate( "channel", "C_LIST_CHANNEL", 1, e =>
+            printMessage( `C_LIST_CHANNEL in ${e.zone}. unk=${e.unk}` )
+        );
         // int32 zone    # If changed, triggers the "Moving to channel X." message
         // int32 channel # ^ See above
         // int32 density # 0 = Low, 1 = Medium, 2 = High
@@ -893,40 +820,30 @@ module.exports = function utilityBox(mod) {
         - int32 amount
         - int32 cooldown
         */
-        hookManager.addTemplate(
-            "elite-bar",
-            "S_PCBANGINVENTORY_DATALIST",
-            1,
-            event => {
-                let s = "Elite bar:\n[";
-                for (let item of event.inventory) {
-                    s += item.slot;
-                    switch (item.type) {
-                        case 1:
-                            s += `# item: ${item.item}`;
-                            break;
-                        case 2:
-                            s += `# skill: ${item.skill}`;
-                            break;
-                        default:
-                            s += `# unknown (${item.type})`;
-                    }
-                    s += ` (count: ${item.amount}, cd: ${item.cooldown})\n`;
+        hookManager.addTemplate( "elite-bar", "S_PCBANGINVENTORY_DATALIST", 1, event => {
+            let s = "Elite bar:\n[";
+            for ( let item of event.inventory ) {
+                s += item.slot;
+                switch ( item.type ) {
+                    case 1:
+                        s += `# item: ${item.item}`;
+                        break;
+                    case 2:
+                        s += `# skill: ${item.skill}`;
+                        break;
+                    default:
+                        s += `# unknown (${item.type})`;
                 }
-                s += "]";
-                printMessage(s);
+                s += ` (count: ${item.amount}, cd: ${item.cooldown})\n`;
             }
-        );
+            s += "]";
+            printMessage( s );
+        });
 
         /* int32 slot */
-        hookManager.addTemplate(
-            "elite-bar",
-            "C_PCBANGINVENTORY_USE_SLOT",
-            1,
-            event => {
-                printMessage("Use elite-bar slot " + event.slot);
-            }
-        );
+        hookManager.addTemplate( "elite-bar", "C_PCBANGINVENTORY_USE_SLOT", 1, event => {
+            printMessage( "Use elite-bar slot " + event.slot );
+        });
 
         /*
         int32 set
@@ -937,30 +854,25 @@ module.exports = function utilityBox(mod) {
         - int32 item
         - int64 cooldown
         */
-        hookManager.addTemplate(
-            "premium",
-            "S_PREMIUM_SLOT_DATALIST",
-            1,
-            event => {
-                let s = "Premium bar:\n[";
-                for (let item of event.inventory) {
-                    s += item.slot;
-                    switch (item.type) {
-                        case 1:
-                            s += `# item: ${item.item}`;
-                            break;
-                        case 2:
-                            s += `# skill: ${item.skill}`;
-                            break;
-                        default:
-                            s += `# unknown (${item.type})`;
-                    }
-                    s += ` (cd: ${item.cooldown})\n`;
+        hookManager.addTemplate( "premium", "S_PREMIUM_SLOT_DATALIST", 1, event => {
+            let s = "Premium bar:\n[";
+            for ( let item of event.inventory ) {
+                s += item.slot;
+                switch ( item.type ) {
+                    case 1:
+                        s += `# item: ${item.item}`;
+                        break;
+                    case 2:
+                        s += `# skill: ${item.skill}`;
+                        break;
+                    default:
+                        s += `# unknown (${item.type})`;
                 }
-                s += "]";
-                printMessage(s);
+                s += ` (cd: ${item.cooldown})\n`;
             }
-        );
+            s += "]";
+            printMessage( s );
+        });
 
         /*
         int32 set
@@ -969,25 +881,20 @@ module.exports = function utilityBox(mod) {
         int32 skill
         int32 item
         */
-        hookManager.addTemplate(
-            "premium",
-            "C_PREMIUM_SLOT_USE_SLOT",
-            1,
-            event => {
-                let s = `Use premium bar slot ${event.slot} (set:${event.set})`;
-                switch (event.type) {
-                    case 1:
-                        s += `# item: ${event.item}`;
-                        break;
-                    case 2:
-                        s += `# skill: ${event.skill}`;
-                        break;
-                    default:
-                        s += `# unknown (${event.type})`;
-                }
-                printMessage(s);
+        hookManager.addTemplate( "premium", "C_PREMIUM_SLOT_USE_SLOT", 1, event => {
+            let s = `Use premium bar slot ${event.slot} (set:${event.set})`;
+            switch ( event.type ) {
+                case 1:
+                    s += `# item: ${event.item}`;
+                    break;
+                case 2:
+                    s += `# skill: ${event.skill}`;
+                    break;
+                default:
+                    s += `# unknown (${event.type})`;
             }
-        );
+            printMessage( s );
+        });
         /*
         # majorPatchVersion >= 75
 
@@ -1000,13 +907,9 @@ module.exports = function utilityBox(mod) {
         int32 unk2
         int32 unk3 # 0? new
         */
-        hookManager.addTemplate("buff", "S_ABNORMALITY_BEGIN", 3, e => {
-            if (mod.game.me.is(e.target))
-                printMessage(
-                    `Buff start: ${e.id} (dur:${e.duration}, stacks:${
-                        e.stacks
-                    },${e.source}->${e.target})`
-                );
+        hookManager.addTemplate( "buff", "S_ABNORMALITY_BEGIN", 3, e => {
+            if ( mod.game.me.is( e.target ) )
+                printMessage( `Buff start: ${e.id} (dur:${e.duration}, stacks:${e.stacks},${e.source}->${e.target})` );
         });
 
         /*
@@ -1016,22 +919,17 @@ module.exports = function utilityBox(mod) {
         int32  unk
         int32  stacks
         */
-        hookManager.addTemplate("buff", "S_ABNORMALITY_REFRESH", 1, e => {
-            if (mod.game.me.is(e.target))
-                printMessage(
-                    `Buff refresh: ${e.id} (dur:${e.duration}, stacks:${
-                        e.stacks
-                    },->${e.target})`
-                );
+        hookManager.addTemplate( "buff", "S_ABNORMALITY_REFRESH", 1, e => {
+            if ( mod.game.me.is( e.target ) )
+                printMessage( `Buff refresh: ${e.id} (dur:${e.duration}, stacks:${e.stacks},->${e.target})` );
         });
 
         /*
         uint64 target
         uint32 id
         */
-        hookManager.addTemplate("buff", "S_ABNORMALITY_END", 1, e => {
-            if (mod.game.me.is(e.target))
-                printMessage(`Buff end: ${e.id} (->${e.target})`);
+        hookManager.addTemplate( "buff", "S_ABNORMALITY_END", 1, e => {
+            if ( mod.game.me.is( e.target ) ) printMessage( `Buff end: ${e.id} (->${e.target})` );
         });
 
         /*
@@ -1041,13 +939,9 @@ module.exports = function utilityBox(mod) {
         byte unk2
         byte unk3
         */
-        hookManager.addTemplate("buff", "S_ABNORMALITY_FAIL", 1, e => {
-            if (mod.game.me.is(e.target))
-                printMessage(
-                    `Buff end: ${e.id} (->${e.target},unk1:${e.unk1},unk2:${
-                        e.unk2
-                    },unk3:${e.unk3})`
-                );
+        hookManager.addTemplate( "buff", "S_ABNORMALITY_FAIL", 1, e => {
+            if ( mod.game.me.is( e.target ) )
+                printMessage( `Buff end: ${e.id} (->${e.target},unk1:${e.unk1},unk2:${e.unk2},unk3:${e.unk3})` );
         });
         /*
         offset authorName
@@ -1061,8 +955,8 @@ module.exports = function utilityBox(mod) {
         string authorName
         string message
         */
-        hookManager.addTemplate("chat", "S_CHAT", 2, e => {
-            printMessage(e.message);
+        hookManager.addTemplate( "chat", "S_CHAT", 2, e => {
+            printMessage( e.message );
         });
         /*
         offset authorName
@@ -1077,8 +971,8 @@ module.exports = function utilityBox(mod) {
         string recipient
         string message
         */
-        hookManager.addTemplate("chat", "S_WHISPER", 2, e => {
-            printMessage(e.message);
+        hookManager.addTemplate( "chat", "S_WHISPER", 2, e => {
+            printMessage( e.message );
         });
         /*
         offset authorName
@@ -1089,8 +983,8 @@ module.exports = function utilityBox(mod) {
         string authorName
         string message
         */
-        hookManager.addTemplate("chat", "S_PRIVATE_CHAT", 1, e => {
-            printMessage(e.message);
+        hookManager.addTemplate( "chat", "S_PRIVATE_CHAT", 1, e => {
+            printMessage( e.message );
         });
 
         /*
@@ -1104,8 +998,8 @@ module.exports = function utilityBox(mod) {
         string name
         string message
         */
-        hookManager.addTemplate("chat", "S_PARTY_MATCH_LINK", 1, e => {
-            printMessage(e.name + " " + e.message);
+        hookManager.addTemplate( "chat", "S_PARTY_MATCH_LINK", 1, e => {
+            printMessage( e.name + " " + e.message );
         });
 
         /*
@@ -1116,35 +1010,26 @@ module.exports = function utilityBox(mod) {
         - int32 index
         - int32 value
         */
-        hookManager.addTemplate("version", "C_CHECK_VERSION", 1, e => {
-            printMessage("Versions:");
-            for (let v of e.version) {
-                printMessage(
-                    `<font color="${COLOR_VALUE}">${JSON.stringify(v)}</font>`
-                );
+        hookManager.addTemplate( "version", "C_CHECK_VERSION", 1, e => {
+            printMessage( "Versions:" );
+            for ( let v of e.version ) {
+                printMessage( `<font color="${COLOR_VALUE}">${JSON.stringify( v )}</font>` );
             }
         });
         /* byte ok */
-        hookManager.addTemplate("version", "S_CHECK_VERSION", 1, e => {
-            printMessage(
-                `Version answer: <font color="${COLOR_VALUE}">${e.ok}</font>`
-            );
+        hookManager.addTemplate( "version", "S_CHECK_VERSION", 1, e => {
+            printMessage( `Version answer: <font color="${COLOR_VALUE}">${e.ok}</font>` );
         });
 
         /* int32 id */
-        hookManager.addTemplate("daily", "C_COMPLETE_DAILY_EVENT", 1, e => {
-            printMessage(`Returned: ${e.id}.`);
+        hookManager.addTemplate( "daily", "C_COMPLETE_DAILY_EVENT", 1, e => {
+            printMessage( `Returned: ${e.id}.` );
         });
 
         /* int32 id */
-        hookManager.addTemplate(
-            "daily",
-            "S_COMPLETE_EVENT_MATCHING_QUEST",
-            1,
-            e => {
-                printMessage(`Completed: ${e.id}.`);
-            }
-        );
+        hookManager.addTemplate( "daily", "S_COMPLETE_EVENT_MATCHING_QUEST", 1, e => {
+            printMessage( `Completed: ${e.id}.` );
+        });
         /*
         int32 expDifference
         uint64 exp
@@ -1156,57 +1041,43 @@ module.exports = function utilityBox(mod) {
         float baseRev
         float tsRev
          */
-        hookManager.addTemplate("player-ep", "S_PLAYER_CHANGE_EP", 1, e => {
+        hookManager.addTemplate( "player-ep", "S_PLAYER_CHANGE_EP", 1, e => {
             let messages = [];
+            messages.push( `LVL: <font color="${COLOR_VALUE}">${e.level}</font>${e.levelUp ? " (Level UP!)" : ""}` );
+            messages.push( `EP: <font color="${COLOR_VALUE}">${e.totalPoints}</font>` );
             messages.push(
-                `LVL: <font color="${COLOR_VALUE}">${e.level}</font>${
-                    e.levelUp ? " (Level UP!)" : ""
-                }`
-            );
-            messages.push(
-                `EP: <font color="${COLOR_VALUE}">${e.totalPoints}</font>`
-            );
-            messages.push(
-                `XP gained: <font color="${COLOR_VALUE}">${
-                    e.expDifference
-                }</font> (<font color="${COLOR_VALUE}">${
+                `XP gained: <font color="${COLOR_VALUE}">${e.expDifference}</font> (<font color="${COLOR_VALUE}">${
                     e.baseRev
                 }</font>, TS=<font color="${COLOR_VALUE}">${e.tsRev}</font>)`
             );
             messages.push(
-                `XP: <font color="${COLOR_VALUE}">${e.exp -
-                    BigInt(
-                        e.dailyExp
-                    )}</font> ==( <font color="${COLOR_VALUE}">${Math.floor(
+                `XP: <font color="${COLOR_VALUE}">${e.exp
+                    - BigInt( e.dailyExp )}</font> ==( <font color="${COLOR_VALUE}">${Math.floor(
                     e.dailyExpMax * SOFT_CAP_MOD_START
-                )}</font> [<font color="${COLOR_VALUE}">${
-                    e.dailyExpMax
-                }</font>] - <font color="${COLOR_VALUE}">${
+                )}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax}</font>] - <font color="${COLOR_VALUE}">${
                     e.dailyExp
-                }</font> = <font color="${COLOR_VALUE}">${Math.floor(
-                    e.dailyExpMax * SOFT_CAP_MOD_START
-                ) -
-                    e.dailyExp}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax -
-                    e.dailyExp}</font>] )==> <font color="${COLOR_VALUE}">${
-                    e.exp
-                }</font>`
+                }</font> = <font color="${COLOR_VALUE}">${Math.floor( e.dailyExpMax * SOFT_CAP_MOD_START )
+                    - e.dailyExp}</font> [<font color="${COLOR_VALUE}">${e.dailyExpMax
+                    - e.dailyExp}</font>] )==> <font color="${COLOR_VALUE}">${e.exp}</font>`
             );
-            messages.map(x => {
-                printMessage(x);
+            messages.map( x => {
+                printMessage( x );
             });
         });
 
-        hookManager.addTemplate("player-ep-log", "S_PLAYER_CHANGE_EP", 1, e => {
-            logData(`${mod.game.me.serverId}-${mod.game.me.name}-ep`,e);
+        hookManager.addTemplate( "player-ep-log", "S_PLAYER_CHANGE_EP", 1, e => {
+            logData( `${mod.game.me.serverId}-${mod.game.me.name}-ep`, e );
         });
         // int32 totalPoints
         // int32 gainedPoints
-        hookManager.addTemplate("player-ep", "S_CHANGE_EP_POINT", 1, e => {
+        hookManager.addTemplate( "player-ep", "S_CHANGE_EP_POINT", 1, e => {
             msg.clear();
-            msg.text("EP: ").color(COLOR_VALUE).text(e.totalPoints);
-            msg.color().text("Gained?: ");
-            msg.color(COLOR_VALUE).text(e.gainedPoints);
-            if(verbose) printMessage(msg.toHtml());
+            msg.text( "EP: " )
+                .color( COLOR_VALUE )
+                .text( e.totalPoints );
+            msg.color().text( "Gained?: " );
+            msg.color( COLOR_VALUE ).text( e.gainedPoints );
+            if ( verbose ) printMessage( msg.toHtml() );
         });
 
         /*
@@ -1222,115 +1093,95 @@ module.exports = function utilityBox(mod) {
         - uint32 id
         - uint32 level
          */
-        hookManager.addTemplate("player-ep", "S_LOAD_EP_INFO", 1, e => {
+        hookManager.addTemplate( "player-ep", "S_LOAD_EP_INFO", 1, e => {
             let messages = [];
-            messages.push(`EP-INFO:`);
+            messages.push( `EP-INFO:` );
+            messages.push( `LVL: <font color="${COLOR_VALUE}">${e.level}</font>` );
             messages.push(
-                `LVL: <font color="${COLOR_VALUE}">${e.level}</font>`
-            );
-            messages.push(
-                `EP: <font color="${COLOR_VALUE}">${
-                    e.usedPoints
-                }</font>/<font color="${COLOR_VALUE}">${
+                `EP: <font color="${COLOR_VALUE}">${e.usedPoints}</font>/<font color="${COLOR_VALUE}">${
                     e.totalPoints
-                }</font> (left: <font color="${COLOR_VALUE}">${e.totalPoints -
-                    e.usedPoints}</font>)`
+                }</font> (left: <font color="${COLOR_VALUE}">${e.totalPoints - e.usedPoints}</font>)`
             );
             messages.push(
-                `XP: <font color="${COLOR_VALUE}">${e.exp -
-                    BigInt(
-                        e.dailyExp
-                    )}</font> ==(<font color="${COLOR_VALUE}">${Math.floor(
+                `XP: <font color="${COLOR_VALUE}">${e.exp
+                    - BigInt( e.dailyExp )}</font> ==(<font color="${COLOR_VALUE}">${Math.floor(
                     e.dailyExpMax * SOFT_CAP_MOD_START
-                )}</font>[<font color="${COLOR_VALUE}">${
-                    e.dailyExpMax
-                }</font>]-<font color="${COLOR_VALUE}">${
+                )}</font>[<font color="${COLOR_VALUE}">${e.dailyExpMax}</font>]-<font color="${COLOR_VALUE}">${
                     e.dailyExp
-                }</font>=<font color="${COLOR_VALUE}">${Math.floor(
-                    e.dailyExpMax * SOFT_CAP_MOD_START
-                ) -
-                    e.dailyExp}</font>[<font color="${COLOR_VALUE}">${e.dailyExpMax -
-                    e.dailyExp}</font>] )==> <font color="${COLOR_VALUE}">${
-                    e.exp
-                }</font>`
+                }</font>=<font color="${COLOR_VALUE}">${Math.floor( e.dailyExpMax * SOFT_CAP_MOD_START )
+                    - e.dailyExp}</font>[<font color="${COLOR_VALUE}">${e.dailyExpMax
+                    - e.dailyExp}</font>] )==> <font color="${COLOR_VALUE}">${e.exp}</font>`
             );
             // msg.push(`Perks:`);
             // for(let p of e.perks) {
             //     msg.push(`<font color="${COLOR_VALUE}">${p.id}</font>: <font color="${COLOR_VALUE}">${p.level}</font>`);
             // }
-            messages.map(x => {
-                printMessage(x);
+            messages.map( x => {
+                printMessage( x );
             });
         });
 
-        hookManager.addTemplate("player-ep-log", "S_LOAD_EP_INFO", 1, e => {
-            logData(`${mod.game.me.serverId}-${mod.game.me.name}-ep`,e);
-        })
+        hookManager.addTemplate( "player-ep-log", "S_LOAD_EP_INFO", 1, e => {
+            logData( `${mod.game.me.serverId}-${mod.game.me.name}-ep`, e );
+        });
 
         // ?
-        hookManager.addTemplate("player-ep", "S_SHOW_USER_EP_INFO", 1, e => {
+        hookManager.addTemplate( "player-ep", "S_SHOW_USER_EP_INFO", 1, e => {
             let msg = `Show user EP-INFO.`;
             // logger["player"].debug(cleanString(msg));
-            printMessage(msg);
+            printMessage( msg );
         });
 
         // int32 limit
-        hookManager.addTemplate(
-            "player-ep",
-            "S_CHANGE_EP_EXP_DAILY_LIMIT",
-            1,
-            e => {
-                let msg = `Change Daily limit to <font color="${COLOR_VALUE}">${
-                    e.limit
-                }</font>`;
-                // logger["player"].debug(cleanString(msg));
-                printMessage(msg);
-            }
-        );
+        hookManager.addTemplate( "player-ep", "S_CHANGE_EP_EXP_DAILY_LIMIT", 1, e => {
+            let msg = `Change Daily limit to <font color="${COLOR_VALUE}">${e.limit}</font>`;
+            // logger["player"].debug(cleanString(msg));
+            printMessage( msg );
+        });
     }
 
-    function logData(logName, data) {
-        if (!logger[logName]) {
+    function logData( logName, data ) {
+        if ( !logger[logName]) {
             logger[logName] = bunyan.createLogger({
                 name: logName,
                 streams: [
                     {
-                        path: path.join(GENERAL_LOG_PATH, `${logName}.log`),
+                        path: path.join( GENERAL_LOG_PATH, `${logName}.log` ),
                         level: "debug"
                     }
                 ]
             });
         }
-        let serializedData = serializeData(data);
+        let serializedData = serializeData( data );
         logger[logName].debug({ data: serializedData, localeTime: new Date().toLocaleTimeString() });
     }
 
     function serializeData( data ) {
-        let serializedData = {}
-        for(let p in data) {
-            if(typeof data[p] === 'object') serializedData[p] = serializeData(data[p]);
-            else if(typeof data[p] === 'bigint') serializedData[p] = data[p].toString()
+        let serializedData = {};
+        for ( let p in data ) {
+            if ( typeof data[p] === "object" ) serializedData[p] = serializeData( data[p]);
+            else if ( typeof data[p] === "bigint" ) serializedData[p] = data[p].toString();
             else {
-                serializedData[p] = JSON.stringify(data[p]);
+                serializedData[p] = JSON.stringify( data[p]);
             }
         }
         return serializedData;
     }
 
-    function logStringArray(logName, messages) {
-        if (!logger[logName]) {
+    function logStringArray( logName, messages ) {
+        if ( !logger[logName]) {
             logger[logName] = bunyan.createLogger({
                 name: logName,
                 streams: [
                     {
-                        path: path.join(GENERAL_LOG_PATH, `${logName}.log`),
+                        path: path.join( GENERAL_LOG_PATH, `${logName}.log` ),
                         level: "debug"
                     }
                 ]
             });
         }
-        messages = messages.map(x => cleanString(x));
-        logger[logName].debug(messages.join(";"));
+        messages = messages.map( x => cleanString( x ) );
+        logger[logName].debug( messages.join( ";" ) );
     }
 
     //#################################################
@@ -1338,33 +1189,33 @@ module.exports = function utilityBox(mod) {
     //#################################################
     // Prints the message in game and in console with local time stamp.
     // @return No return.
-    function printMessage(message, consoleOut = true) {
+    function printMessage( message, consoleOut = true ) {
         let timedMessage = `[${new Date().toLocaleTimeString()}]: ${message}`;
-        command.message(timedMessage);
-        if (consoleOut) console.log(cleanString(timedMessage));
+        command.message( timedMessage );
+        if ( consoleOut ) console.log( cleanString( timedMessage ) );
     }
     // @return Returns a html-tag-free string.
-    function cleanString(dirtyString) {
-        return dirtyString.replace(/<[^>]*>/g, "");
+    function cleanString( dirtyString ) {
+        return dirtyString.replace( /<[^>]*>/g, "" );
     }
     // Converts a time in milliseconds to UTC time string.
     // @return Returns the time in the format: hh:MM:SS
-    function msToUTCTimeString(timeInMs) {
-        let secs = Math.floor(timeInMs / 1000.0),
-            mins = Math.floor(secs / 60.0),
-            h = Math.floor(mins / 60.0),
+    function msToUTCTimeString( timeInMs ) {
+        let secs = Math.floor( timeInMs / 1000.0 ),
+            mins = Math.floor( secs / 60.0 ),
+            h = Math.floor( mins / 60.0 ),
             s = secs % 60,
             m = mins % 60;
-        s = addPrefixZero(s);
-        m = addPrefixZero(m);
-        h = addPrefixZero(h);
+        s = addPrefixZero( s );
+        m = addPrefixZero( m );
+        h = addPrefixZero( h );
         return `${h}:${m}:${s}`;
     }
     // Adds a zero to numbers smaller than 10.
     // @return Returns the number as string with 0 prefix or
     // the number if no prefix needed.
-    function addPrefixZero(num) {
-        if (num < 10) {
+    function addPrefixZero( num ) {
+        if ( num < 10 ) {
             num = "0" + num;
         }
         return num;
