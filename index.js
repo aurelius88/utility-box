@@ -14,7 +14,7 @@ module.exports = function utilityBox( mod ) {
     mod.game.initialize(["me", "contract"]);
     const ROOT_COMMAND = "util";
     const POSITIONS_FILE_NAME = "positions.json";
-    const POSITIONS_PATH = path.resolve( __dirname, POSITIONS_FILE_NAME);
+    const POSITIONS_PATH = path.resolve( __dirname, POSITIONS_FILE_NAME );
     const OPCODES_PATH = path.join( __dirname, "opcodes" );
     const GENERAL_LOG_PATH = path.join( __dirname, "logs" );
     const command = mod.command;
@@ -36,7 +36,7 @@ module.exports = function utilityBox( mod ) {
         verbose = false,
         version = mod.dispatch.protocolVersion;
 
-    const POSITIONS_DATA = FileHelper.getJsonData( POSITIONS_PATH );
+    const POSITIONS_DATA = FileHelper.loadJson( POSITIONS_PATH );
     if ( Array.isArray( POSITIONS_DATA ) ) {
         positions = new Map( POSITIONS_DATA );
     }
@@ -66,7 +66,7 @@ module.exports = function utilityBox( mod ) {
     process.on( "exit", () => {
         let posData = [];
         positions.forEach( ( v, k ) => posData.push([k, v]) );
-        FileHelper.saveJsonData( POSITIONS_PATH, posData );
+        FileHelper.saveJson( POSITIONS_PATH, posData );
         stopScanning();
     });
 
@@ -221,7 +221,7 @@ module.exports = function utilityBox( mod ) {
                 if ( lastLocation && lastLocation.loc !== undefined ) {
                     chat.printMessage( `Current Position:  ${lastLocation.loc}` );
                 } else {
-                    if ( !hookManager.hasActiveGroup( "movement" ) ) switchGroup( "movement" );
+                    if ( !hookManager.hasActiveGroup( "positioning" ) ) switchGroup( "positioning" );
                     chat.printMessage(
                         "No position, yet. Please move one step or jump to get your position. And try it again."
                     );
@@ -646,9 +646,10 @@ module.exports = function utilityBox( mod ) {
                 default:
                     typeName = "Unknown: " + event.type;
             }
-            lastLocation = event;
             if ( verbose ) chat.printMessage( `${typeName} (${ChatHelper.msToUTCTimeString( event.time )}) => ${event.loc}` );
         });
+
+        hookManager.addTemplate( "positioning", "C_PLAYER_LOCATION", 5, event => ( lastLocation = event ) );
 
         /*
         uint64 gameId
