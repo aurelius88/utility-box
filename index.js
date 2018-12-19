@@ -54,6 +54,7 @@ module.exports = function utilityBox( mod ) {
     initGroupedOpcodeHooks();
     initFixHooks();
 
+    hookManager.hookGroup( "positioning" );
     hookManager.hookGroup( "player-ep-log" );
 
     mod.game.on( "enter_game", () => {
@@ -646,7 +647,7 @@ module.exports = function utilityBox( mod ) {
                 default:
                     typeName = "Unknown: " + event.type;
             }
-            if ( verbose ) chat.printMessage( `${typeName} (${ChatHelper.msToUTCTimeString( event.time )}) => ${event.loc}` );
+            chat.printMessage( `${typeName} (${ChatHelper.msToUTCTimeString( event.time )}) => ${event.loc}` );
         });
 
         hookManager.addTemplate( "positioning", "C_PLAYER_LOCATION", 5, event => ( lastLocation = event ) );
@@ -1033,7 +1034,7 @@ module.exports = function utilityBox( mod ) {
                 .text( e.totalPoints );
             msg.color().text( "Gained?: " );
             msg.color( COLOR_VALUE ).text( e.gainedPoints );
-            if ( verbose ) chat.printMessage( msg.toHtml() );
+            chat.printMessage( msg.toHtml() );
         });
 
         /*
