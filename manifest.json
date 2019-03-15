@@ -1,8 +1,10 @@
 {
     "files": {
-        "index.js": "d5c155c0ad4530c6d39198b519bc3740a48c554d35aa15a32cf1b3b9ecdb016b",
-        "module.json": "e45bc745d5d0a4abfd6cb7badf1ff1668d4d6fb24864f18468b296733ce5fd10",
-        "settings_migrator.js": "37d44addffcd96b157b29e322452d3328b922c4eb225a89768c3afc46db8f38b"
+        "index.js": "f1651ac0d20b546aca5d2d112b2da7e63ee831809e2e0a75d34179fb639afb7b",
+        "module.json": "72cdbb2167c9fc1897b22f1c31bbd59090409dc351cc69ac90d372b40ada61c3",
+        "settings_migrator.js": "37d44addffcd96b157b29e322452d3328b922c4eb225a89768c3afc46db8f38b",
+        "templates.json": "ac5b062acc5c0e2943e146e7fd36ec660afda3eda29e5b4f6c1aad1411109cc5",
+        "packet-analyser.js": "7bea4c8400506eabd8b481d4c7bee40f1bea3f04d6956c8c9b367253aa091856"
     },
     "defs": {}
 }
