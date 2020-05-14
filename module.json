@@ -3,14 +3,14 @@
     "name": "utility-box",
     "author": "aurelius88",
     "description": "Tool for help developing modules. Mostly analysing packets and stuff like that.",
-    "version": "0.3.0",
+    "version": "0.3.1-dev",
     "options": {
-        "niceName": "Utility-Box",
+        "niceName": "Utility-Box (dev)",
         "settingsVersion": 1,
         "settingsFile": "config.json",
         "settingsMigrator": "settings_migrator.js"
     },
-    "servers": ["https://raw.githubusercontent.com/aurelius88/utility-box/master/"],
+    "servers": ["https://raw.githubusercontent.com/aurelius88/utility-box/dev/"],
     "supportUrl": "https://github.com/aurelius88/utility-box/issues",
     "dependencies": {
         "util-lib": "https://raw.githubusercontent.com/aurelius88/util-lib/master/"

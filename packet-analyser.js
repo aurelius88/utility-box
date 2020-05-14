@@ -1,4 +1,133 @@
-const { Readable } = require( "../../node_modules/tera-data-parser/lib/protocol/stream" );
+const log = require('../../node_modules/tera-data-parser/lib/logger'),
+      { Customize, SkillID, Vec3 } = require('../../node_modules/tera-data-parser/lib/protocol/types')
+
+const MULT_INT16_TO_RAD = 1 / 0x8000 * Math.PI,
+      MULT_RAD_TO_INT16 = 1 / Math.PI * 0x8000
+
+class Readable {
+    constructor(buffer, position = 0) {
+        this.buffer = buffer
+        this.position = position
+    }
+
+    seek(n) { return this.position = n }
+    skip(n) { return this.position += n }
+
+    bool() {
+        const ret = this.byte()
+        if(ret > 1) log.debug(new Error('read byte not 0 or 1 for bool'))
+        return !!ret
+    }
+
+    byte() { return this.buffer.readUInt8(this.position++) }
+
+    bytes(n) { return Buffer.from(this.buffer.slice(this.position, this.position += n)) }
+
+    uint16() {
+        const ret = this.buffer.readUInt16LE(this.position)
+        this.position += 2
+        return ret
+    }
+
+    uint32() {
+        const ret = this.buffer.readUInt32LE(this.position)
+        this.position += 4
+        return ret
+    }
+
+    uint64() {
+        const ret = this.buffer.readBigUInt64LE(this.position)
+        this.position += 8
+        return ret
+    }
+
+    int16() {
+        const ret = this.buffer.readInt16LE(this.position)
+        this.position += 2
+        return ret
+    }
+
+    int32() {
+        const ret = this.buffer.readInt32LE(this.position)
+        this.position += 4
+        return ret
+    }
+
+    int64() {
+        const ret = this.buffer.readBigInt64LE(this.position)
+        this.position += 8
+        return ret
+    }
+
+    vec3() {
+        return new Vec3(this.float(), this.float(), this.float())
+    }
+
+    vec3fa() {
+        return new Vec3(this.float() * MULT_INT16_TO_RAD, this.float() * MULT_INT16_TO_RAD, this.float() * MULT_INT16_TO_RAD)
+    }
+
+    angle() {
+        return this.int16() * MULT_INT16_TO_RAD
+    }
+
+    skillid32() {
+        const raw = this.uint32(),
+            type = (raw >> 26) & 0xf,
+            npc = Boolean(raw & 0x40000000),
+            hasHuntingZone = npc && type === 1
+
+        return new SkillID({
+            id: raw & (hasHuntingZone ? 0xffff : 0x3ffffff),
+            huntingZoneId: hasHuntingZone ? ((raw >> 16) & 0x3ff) : 0,
+            type,
+            npc,
+            reserved: raw >> 31
+        })
+    }
+
+    skillid() {
+        const raw = this.uint64(),
+            type = Number((raw >> BigInt(28)) & BigInt(0xf)),
+            npc = Boolean(raw & BigInt(0x0100000000)),
+            hasHuntingZone = npc && type === 1
+
+        return new SkillID({
+            id: Number(raw & (hasHuntingZone ? BigInt(0xffff) : BigInt(0xfffffff))),
+            huntingZoneId: hasHuntingZone ? Number((raw >> BigInt(16)) & BigInt(0xfff)) : 0,
+            type,
+            npc,
+            reserved: Number(raw >> BigInt(33))
+        })
+    }
+
+    customize() {
+        return new Customize(this.uint64());
+    }
+
+    float() {
+        const ret = this.buffer.readFloatLE(this.position)
+        this.position += 4
+        return ret
+    }
+
+    double() {
+        const ret = this.buffer.readDoubleLE(this.position)
+        this.position += 8
+        return ret
+    }
+
+    string() {
+        const ret = []
+        let c, i = -1
+        c = this.uint16()
+        while( c ) {
+          ret[++i] = c
+          c = this.uint16()
+        }
+        return String.fromCharCode.apply(null, ret)
+    }
+}
 
 const TYPES = [
     "bool",
