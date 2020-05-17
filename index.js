@@ -3,6 +3,7 @@ const path = require( "path" );
 const fs = require( "fs" );
 const util = require( "util" );
 const PacketAnalyser = require( "./packet-analyser" );
+const SimpleLogManager = require( "simple-node-logger" ).createLogManager();
 
 const COLOR_ENABLE = "#56B4E9";
 const COLOR_DISABLE = "#e64500";
@@ -24,41 +25,35 @@ const BUFFER_LENGTH_LONG = 512;
 const FORMAT_OPTIONS_SHORT = { colors: false, breakLength: 120, maxArrayLength: BUFFER_LENGTH_SHORT };
 const FORMAT_OPTIONS_COMMON = { colors: false, breakLength: 120 };
 const FORMAT_OPTIONS_LONG = { colors: false, breakLength: 120, maxArrayLength: BUFFER_LENGTH_LONG };
-let dynamicTemplates = [];
-let hookManager = null;
-let msg = null;
-let chat = null;
-let HookManager = null;
-let MessageBuilder = null;
-let ChatHelper = null;
-let FileHelper = null;
+let HookManager;
+let MessageBuilder;
+let ChatHelper;
+let FileHelper;
+let hookManager;
+let msg;
+let chat;
 let scanning = false;
-let positions = new Map();
+let dynamicTemplates;
+let positions;
 
 function utilityBox( mod ) {
-    mod.game.initialize(["me", "contract"]);
+    //mod.game.initialize(["me", "contract"]);
     const command = mod.command;
-    let lib = mod.require["util-lib"];
-    HookManager = lib["hook-manager"];
-    hookManager = new HookManager( mod );
-    MessageBuilder = lib["message-builder"];
-    msg = new MessageBuilder();
-    ChatHelper = lib["chat-helper"];
-    chat = new ChatHelper( mod );
-    FileHelper = lib["file-helper"];
     const logger = {};
+    // const simpleLogger = {};
     if ( !fs.existsSync( OPCODES_PATH ) ) fs.mkdirSync( OPCODES_PATH );
     if ( !fs.existsSync( GENERAL_LOG_PATH ) ) fs.mkdirSync( GENERAL_LOG_PATH );
 
     let gameId = null,
         lastLocation = null,
-        verbose = false,
-        version = mod.dispatch.protocolVersion;
+        verbose = false;
     let analyser = {};
-    chat.printMessage( "Version: " + version, true );
+    // chat.printMessage( "Version: " + version, true );
     const POSITIONS_DATA = FileHelper.loadJson( POSITIONS_PATH );
     if ( Array.isArray( POSITIONS_DATA ) ) {
         positions = new Map( POSITIONS_DATA );
+    } else {
+        positions = new Map();
     }
     const TEMPLATES_DATA = FileHelper.loadJson( TEMPLATES_PATH );
     if ( Array.isArray( TEMPLATES_DATA ) ) {
@@ -75,18 +70,20 @@ function utilityBox( mod ) {
                 mod.log( `Could not read template: ${err}` );
             }
         }
+    } else {
+        dynamicTemplates = [];
     }
-    const OPCODE_JSON = "opcodes.json";
-    const GROUPED_OPCODE_JSON = "groups.json";
+    // const OPCODE_JSON = "opcodes.json";
+    // const GROUPED_OPCODE_JSON = "groups.json";
     let OPCODE_FILE_NAME, OPCODE_NAME_MAP, GROUPED_OPCODE_MAP, NAME_OPCODE_MAP;
-
-    OPCODE_FILE_NAME = `../../node_modules/tera-data/map_base/protocol.${version}.map`;
+    //
+    // OPCODE_FILE_NAME = `../../node_modules/tera-data/map_base/protocol.${version}.map`;
     OPCODE_NAME_MAP = mod.dispatch.protocolMap.code; // opcode -> name
     NAME_OPCODE_MAP = mod.dispatch.protocolMap.name;
     GROUPED_OPCODE_MAP = FileHelper.groupOpcodes( OPCODE_NAME_MAP ); // group (S,C,DBS,...) -> opcode
 
-    //saveJsonData(OPCODE_JSON, Array.from(OPCODE_MAP));
-    //saveJsonData(GROUPED_OPCODE_JSON, Array.from(GROUPED_OPCODE_MAP));
+    // saveJsonData(OPCODE_JSON, Array.from(OPCODE_MAP));
+    // saveJsonData(GROUPED_OPCODE_JSON, Array.from(GROUPED_OPCODE_MAP));
 
     initGroupedOpcodeHooks();
     initFixHooks();
@@ -98,14 +95,14 @@ function utilityBox( mod ) {
         gameId = mod.game.me.gameId;
     });
 
-    // dispatch.game.on( 'leave_game', () => {
+    // mod.game.on( 'leave_game', () => {
     // } );
 
-    // dispatch.game.contract.on( "begin", () => {
+    // mod.game.contract.on( "begin", () => {
     //     chat.printMessage( "Begin Contract." );
     // } );
     //
-    // dispatch.game.contract.on( "end", () => {
+    // mod.game.contract.on( "end", () => {
     //     chat.printMessage( "End Contract." );
     // } );
 
@@ -153,7 +150,7 @@ function utilityBox( mod ) {
         hook: {
             add: {
                 $default: function( group, def, version, ...vars ) {
-                    if ( arguments.length < 4 ) return printHelpList( this.hook.add );
+                    if ( arguments.length < 4 ) return printHelpList( this.help.hook.add );
                     let isNum = isNumber( version );
                     let isCorrectVersion = isVersion( version );
                     if ( typeof version == "string" && !( isNum || isCorrectVersion ) ) {
@@ -177,7 +174,7 @@ function utilityBox( mod ) {
                     if ( !result.group ) {
                         chat.printMessage( "Hook does already exist." );
                     } else {
-                        dynamicTemplates.push({ group, def, version, vars });
+                        dynamicTemplates.push({ group: group, def: def, version: version, vars: vars });
                     }
                 }
             },
@@ -194,7 +191,7 @@ function utilityBox( mod ) {
                     }
                 },
                 $default: function( name, group ) {
-                    if ( !name ) printHelpList( this.hook.remove );
+                    if ( !name ) printHelpList( this.help.hook.remove );
                     if ( hookManager.removeTemplateByName( name, group ) ) {
                         chat.printMessage(
                             `Template named <font color="${COLOR_VALUE}">${name}</font> ${
@@ -205,7 +202,7 @@ function utilityBox( mod ) {
                 }
             },
             $default() {
-                printHelpList( this.hook );
+                printHelpList( this.help.hook );
             }
         },
         analyse: {
@@ -224,9 +221,7 @@ function utilityBox( mod ) {
                         msg.value( util.formatWithOptions( FORMAT_OPTIONS_SHORT, data ) );
                         msg.color().text( ".\nPacket so far: " );
                         let analysedPacket = analyser[analyser.default].analysedPacket;
-                        msg.value(
-                            util.formatWithOptions( FORMAT_OPTIONS_SHORT, analysedPacket )
-                        );
+                        msg.value( util.formatWithOptions( FORMAT_OPTIONS_SHORT, analysedPacket ) );
                         msg.color().text( " (" );
                         msg.highlight( analyser[analyser.default].selectedPosition );
                         msg.color().text( ")" );
@@ -284,7 +279,7 @@ function utilityBox( mod ) {
                 $default: function( name, ...opcodes ) {
                     if ( arguments.length == 0 || ( !name && opcodes[0] == undefined ) ) rawScan();
                     else if ( arguments.length < 2 && !Number.isInteger( parseInt( name ) ) )
-                        return printHelpList( this.scan.raw.help );
+                        return printHelpList( this.help.scan.raw );
                     else scanOpcode( name, ...opcodes );
                 }
             },
@@ -299,7 +294,7 @@ function utilityBox( mod ) {
         pos: {
             save: {
                 $default( ...nameParts ) {
-                    if ( !nameParts || !nameParts.length ) return printHelpList( this.pos.save );
+                    if ( !nameParts || !nameParts.length ) return printHelpList( this.help.pos.save );
                     let name = "";
                     for ( let i = 0; i < nameParts.length; i++ ) {
                         name += nameParts[i];
@@ -327,7 +322,7 @@ function utilityBox( mod ) {
             },
             delete: {
                 $default( ...nameParts ) {
-                    if ( !nameParts || !nameParts.length ) return printHelpList( this.pos.delete );
+                    if ( !nameParts || !nameParts.length ) return printHelpList( this.help.pos.delete );
                     let name = "";
                     for ( let i = 0; i < nameParts.length; i++ ) {
                         name += nameParts[i];
@@ -366,152 +361,336 @@ function utilityBox( mod ) {
                 }
             }
         },
-        $default() {
-            printHelpList();
+        help: {
+            long() {
+                msg.clear();
+                msg.text( "USAGE: " );
+                msg.command( ROOT_COMMAND );
+                msg.color().text( "\nA utility box for mod programmer. (experimental)" );
+                msg.text( "You may get position ingame, scanning for opcodes, creating hooks ingame and more." );
+                msg.text( `For more help use "${ROOT_COMMAND} help [subcommand]". Subcommands are listed below.` );
+                return msg.toHtml();
+            },
+            short() {
+                return `The Utility Box: Utilities for analysing packets with filtering functionality.`;
+            },
+            hook: {
+                long() {
+                    return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook</font>`;
+                },
+                short() {
+                    return `Adding or removing hooks in runtime for test purposes.`;
+                },
+                $default() {
+                    printHelpList( this.help.hook );
+                },
+                add: {
+                    $default() {
+                        printHelpList( this.help.hook.add );
+                    },
+                    short() {
+                        return `Adds a hook template that can be activated with "scan".`;
+                    },
+                    long() {
+                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook add</font> <font color="${COLOR_VALUE}">group hook-name version variables</font>\nWhere...\n<font color="${COLOR_VALUE}">group</font> is the name of the group the hook should be assigned to.\n<font color="${COLOR_VALUE}">hook-name</font> is the name of the hook packet such as "S_CHAT".\n<font color="${COLOR_VALUE}">version</font> is the version of the packet. Should be an integer. Can also be "*" for the latest version or "raw" to create a raw hook.\n<font color="${COLOR_VALUE}">vars</font> are the variables of the packet that should be printed. Each variable name is seperated by a whitespace. There should be at least 1 variable.`;
+                    }
+                },
+                remove: {
+                    $default() {
+                        printHelpList( this.help.hook.remove );
+                    },
+                    short() {
+                        return `Removes all hook templates with the specified hook name.`;
+                    },
+                    long() {
+                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook remove</font> <font color="${COLOR_VALUE}">hook-name group</font>\nWhere...\n<font color="${COLOR_VALUE}">group</font> is the name of the group that contains the hook. (optional)\n<font color="${COLOR_VALUE}">hook-name</font> is the name of the hook packet such as "S_CHAT".`;
+                    },
+                    id: {
+                        $default() {
+                            printHelpList( this.help.hook.remove.id );
+                        },
+                        short() {
+                            return `Removes a hook template by using the id.`;
+                        },
+                        long() {
+                            return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook remove id</font> <font color="${COLOR_VALUE}">group id</font>\nWhere...\n<font color="${COLOR_VALUE}">group</font> is the name of the group the hook should be assigned to.\n<font color="${COLOR_VALUE}">id</font> is the id of the hook inside the group (retrieved by <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list templates</font> with <font color="${COLOR_VALUE}">group</font> as argument).`;
+                        },
+                    }
+                },
+            },
+            scan: {
+                long() {
+                    return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} scan</font> <font color="${COLOR_VALUE}">[group-name]</font>\nWhere <font color="${COLOR_VALUE}">[group-name]</font> is the specific name of the hook group which should be enabled/disabled.`;
+                },
+                short() {
+                    return `Tool for enabling/disabling hooks and output messages. By default enables/disables all hooks or enables/disables a specific group of hooks by a given group name.`;
+                },
+                $default() {
+                    printHelpList( this.help.scan );
+                },
+                raw: {
+                    long() {
+                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} scan raw</font>`;
+                    },
+                    short() {
+                        return `Scans for unknown packets.`;
+                    },
+                    $default() {
+                        printHelpList( this.help.scan.raw );
+                    },
+                },
+                verbose: {
+                    long() {
+                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} scan verbose</font>`;
+                    },
+                    short() {
+                        return `Enables/Disables verbose mode.`;
+                    },
+                    $default() {
+                        printHelpList( this.help.scan.verbose );
+                    },
+                },
+            },
+            list: {
+                long() {
+                    return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list</font>`;
+                },
+                short() {
+                    return `Lists active groups, opcodes, templates or all available groups (default).`;
+                },
+                $default() {
+                    printHelpList( this.help.list );
+                },
+                active: {
+                    long() {
+                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list active</font>`;
+                    },
+                    short() {
+                        return `Lists active groups.`;
+                    },
+                    $default() {
+                        printHelpList( this.help.list.active );
+                    }
+                },
+                opcodes: {
+                    long() {
+                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list opcodes</font>`;
+                    },
+                    short() {
+                        return `Lists all opcodes with their corresponding names.`;
+                    },
+                    $default() {
+                        printHelpList( this.help.list.opcodes );
+                    }
+                },
+                templates: {
+                    long() {
+                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list templates</font>`;
+                    },
+                    short() {
+                        return `Lists all templates with their corresponding names.`;
+                    },
+                    $default() {
+                        printHelpList( this.help.list.templates );
+                    }
+                }
+            },
+            analyse: {
+                long() {
+                    msg.clear();
+                    msg.text( "USAGE: " ).command( `${ROOT_COMMAND} analyse ` );
+                    msg.value( "opcode" ).color();
+                    msg.text( "Where...\n" ).value( "opcode" );
+                    msg.color().text( ` is the opcode of the packet that should be analysed` );
+                    return msg.toHtml( true );
+                },
+                short() {
+                    return `Start/Stop scanning an packet by a given opcode that should be analysed. If no argument is given, it will output the list of currently analysing opcodes.`;
+                },
+                $default() {
+                    printHelpList( this.help.analyse );
+                },
+                start: {
+                    long() {
+                        msg.clear();
+                        msg.text( "USAGE: " ).command( `${ROOT_COMMAND} analyse start` );
+                        return msg.toHtml( true );
+                    },
+                    short() {
+                        return `Trys out all types (except array and object - not yet implemented) and outputs it's values.`;
+                    },
+                    $default() {
+                        printHelpList( this.help.analyse.start );
+                    },
+                },
+                choose: {
+                    long() {
+                        msg.clear();
+                        msg.text( "USAGE: " ).command( `${ROOT_COMMAND} analyse choose` );
+                        msg.value( "type" ).color();
+                        msg.text( "Where...\n" ).value( "type" );
+                        msg.color().text( ` is one of the types listed above by this command or by "${ROOT_COMMAND} analyse start"` );
+                        return msg.toHtml( true );
+                    },
+                    short() {
+                        return `Choose the type for the current analysing packet.`;
+                    },
+                    $default() {
+                        printHelpList( this.help.analyse.choose );
+                    },
+                },
+                undo: {
+                    long() {
+                        msg.clear();
+                        msg.text( "USAGE: " ).command( `${ROOT_COMMAND} analyse undo` );
+                        return msg.toHtml( true );
+                    },
+                    short() {
+                        return `Reverts the last chosen type.`;
+                    },
+                    $default() {
+                        printHelpList( this.help.analyse.undo );
+                    },
+                },
+                redo: {
+                    long() {
+                        msg.clear();
+                        msg.text( "USAGE: " ).command( `${ROOT_COMMAND} analyse redo` );
+                        return msg.toHtml( true );
+                    },
+                    short() {
+                        return `Restores the last revert done by "${ROOT_COMMAND} analyse undo".`;
+                    },
+                    $default() {
+                        printHelpList( this.help.analyse.redo );
+                    },
+                },
+                select: {
+                    long() {
+                        msg.clear();
+                        msg.text( "USAGE: " ).command( `${ROOT_COMMAND} analyse select` );
+                        msg.value( "opcode" ).color();
+                        msg.text( "Where...\n" ).value( "opcode" );
+                        msg.color().text( ` is the opcode of the packet that should be selected as "currently analysing"` );
+                        return msg.toHtml( true );
+                    },
+                    short() {
+                        return `Restores the last revert done by "${ROOT_COMMAND} analyse undo".`;
+                    },
+                    $default() {
+                        printHelpList( this.help.analyse.select );
+                    },
+                },
+            },
+            pos: {
+                long() {
+                    msg.clear();
+                    msg.text( "USAGE: " ).command( `${ROOT_COMMAND} pos` );
+                    return msg.toHtml( true );
+                },
+                short() {
+                    return `A tool to store and print positions. Prints current position by default.`;
+                },
+                $default() {
+                    printHelpList( this.help.pos );
+                },
+                save: {
+                    long() {
+                        msg.clear();
+                        msg.text( "USAGE: " ).command( `${ROOT_COMMAND} pos save ` );
+                        msg.value( "position-name" );
+                        return msg.toHtml( true );
+                    },
+                    short() {
+                        return `Saves the current position with a name.`;
+                    },
+                    $default() {
+                        printHelpList( this.help.pos.save );
+                    },
+                },
+                list: {
+                    long() {
+                        msg.clear();
+                        msg.text( "USAGE: " ).command( `${ROOT_COMMAND} pos list ` );
+                        return msg.toHtml( true );
+                    },
+                    short() {
+                        return `Lists all stored positions.`;
+                    },
+                    $default() {
+                        printHelpList( this.help.pos.list );
+                    },
+                },
+                delete: {
+                    long() {
+                        msg.clear();
+                        msg.text( "USAGE: " ).command( `${ROOT_COMMAND} pos delete ` );
+                        msg.value( "position-name" );
+                        return msg.toHtml( true );
+                    },
+                    short() {
+                        return `Deletes a specified position.`;
+                    },
+                    $default() {
+                        printHelpList( this.help.pos.delete );
+                    },
+                },
+                reset: {
+                    long() {
+                        msg.clear();
+                        msg.text( "USAGE: " ).command( `${ROOT_COMMAND} pos reset ` );
+                        return msg.toHtml( true );
+                    },
+                    short() {
+                        return `Resets the list of stored positions.`;
+                    },
+                    $default() {
+                        printHelpList( this.help.pos.reset );
+                    },
+                },
+            },
+            use: {
+                long() {
+                    msg.clear();
+                    msg.text( "USAGE: " ).command( `${ROOT_COMMAND} use ` );
+                    msg.value( "item-id" );
+                    return msg.toHtml( true );
+                },
+                short() {
+                    return `Uses an item by a specified item id.`;
+                },
+                $default() {
+                    printHelpList( this.help.use );
+                },
+            },
+            $default() {
+                printHelpList( this.help );
+            }
+        },
+        $default( value ) {
+            if ( value == undefined || value == "" ) printHelpList( this.help );
+            else {
+                msg.clear();
+                msg.text( `Unknown command. Type "${ROOT_COMMAND} help" for help.` );
+                chat.printMessage( msg.toHtml() );
+            }
         }
     };
 
-    function printHelpList( cmds = commands ) {
-        chat.printMessage( cmds.help.long() );
+    function printHelpList( cmds = commands.help ) {
+        chat.printMessage( cmds.long() );
+        let keys = Object.keys( cmds );
+        let ignoredKeys = ["$default", "short", "long"];
+        if ( keys.length <= ignoredKeys.length ) return;
         chat.printMessage( "subcommands:" );
-        for ( let c in cmds ) {
-            if ( c != "$default" ) {
-                chat.printMessage( `<font color="${COLOR_HIGHLIGHT}">${c}</font>  -  ${cmds[c].help.short()}` );
+        for ( let c of keys ) {
+            if ( !ignoredKeys.includes( c ) ) {
+                chat.printMessage( `<font color="${chat.COLOR_HIGHLIGHT}">${c}</font>  -  ${cmds[c].short()}` );
             }
         }
     }
-    // initialize HELP
-    function helpObject( cmd, short, long ) {
-        return {
-            short() {
-                return short;
-            },
-            long() {
-                return long;
-            },
-            help: {
-                short() {
-                    return "Displays this help message.";
-                },
-                long() {
-                    return "Displays this help message.";
-                }
-            },
-            $default() {
-                printHelpList( cmd );
-            }
-        };
-    }
 
-    commands.hook.add.help = helpObject(
-        commands.hook.add,
-        `Adds a hook template that can be activated with "scan".`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook add</font> <font color="${COLOR_VALUE}">group hook-name version variables</font>\nWhere...\n<font color="${COLOR_VALUE}">group</font> is the name of the group the hook should be assigned to.\n<font color="${COLOR_VALUE}">hook-name</font> is the name of the hook packet such as "S_CHAT".\n<font color="${COLOR_VALUE}">version</font> is the version of the packet. Should be an integer. Can also be "*" for the latest version or "raw" to create a raw hook.\n<font color="${COLOR_VALUE}">vars</font> are the variables of the packet that should be printed. Each variable name is seperated by a whitespace. There should be at least 1 variable.`
-    );
-
-    commands.hook.remove.help = helpObject(
-        commands.hook.remove,
-        `Removes all hook templates with the specified hook name.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook remove</font> <font color="${COLOR_VALUE}">hook-name group</font>\nWhere...\n<font color="${COLOR_VALUE}">group</font> is the name of the group that contains the hook. (optional)\n<font color="${COLOR_VALUE}">hook-name</font> is the name of the hook packet such as "S_CHAT".`
-    );
-
-    commands.hook.remove.id.help = helpObject(
-        commands.hook.remove.id,
-        `Removes a hook template by using the id.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook remove id</font> <font color="${COLOR_VALUE}">group id</font>\nWhere...\n<font color="${COLOR_VALUE}">group</font> is the name of the group the hook should be assigned to.\n<font color="${COLOR_VALUE}">id</font> is the id of the hook inside the group (retrieved by <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list templates</font> with <font color="${COLOR_VALUE}">group</font> as argument).`
-    );
-
-    commands.hook.help = helpObject(
-        commands.hook,
-        `Adding or removing hooks in runtime for test purposes.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook</font>`
-    );
-
-    commands.scan.raw.help = helpObject(
-        commands.scan.raw,
-        `Scans for unknown packets.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} scan raw</font>`
-    );
-
-    commands.scan.verbose.help = helpObject(
-        commands.scan.verbose,
-        `Enables/Disables verbose mode.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} scan verbose</font>`
-    );
-
-    commands.list.help = helpObject(
-        commands.list,
-        `Lists active groups, opcodes, templates or all available groups (default).`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list</font>`
-    );
-
-    commands.list.active.help = helpObject(
-        commands.list.active,
-        `Lists active groups.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list active</font>`
-    );
-
-    commands.list.opcodes.help = helpObject(
-        commands.list.opcodes,
-        `Lists all opcodes with their corresponding names.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list opcodes</font>`
-    );
-
-    commands.list.templates.help = helpObject(
-        commands.list.templates,
-        `Lists all templates with their corresponding names.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list templates</font>`
-    );
-
-    commands.scan.help = helpObject(
-        commands.scan,
-        `Tool for enabling/disabling hooks and output messages. By default enables/disables all hooks or enables/disables a specific group of hooks by a given group name.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} scan</font> <font color="${COLOR_VALUE}">[group-name]</font>\nWhere <font color="${COLOR_VALUE}">[group-name]</font> is the specific name of the hook group which should be enabled/disabled.`
-    );
-
-    commands.pos.save.help = helpObject(
-        commands.pos.save,
-        `Saves the current position with a name.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} pos save</font> <font color="${COLOR_VALUE}">position-name</font>`
-    );
-
-    commands.pos.list.help = helpObject(
-        commands.pos.list,
-        `Lists all stored positions.`,
-        `USAGE <font color="${COLOR_COMMAND}">${ROOT_COMMAND} pos list</font>`
-    );
-
-    commands.pos.delete.help = helpObject(
-        commands.pos.delete,
-        `Deletes a specified position.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} pos delete</font> <font color="${COLOR_VALUE}">position-name</font>`
-    );
-
-    commands.pos.reset.help = helpObject(
-        commands.pos.reset,
-        `Resets the list of stored positions.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} pos reset</font>`
-    );
-
-    commands.pos.help = helpObject(
-        commands.pos,
-        `A tool to store and print positions. Prints current position by default.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} pos</font>`
-    );
-
-    commands.use.help = helpObject(
-        commands.use,
-        `Uses an item by a specified item id.`,
-        `USAGE <font color="${COLOR_COMMAND}">${ROOT_COMMAND} use</font> <font color="${COLOR_VALUE}">item-id</font>`
-    );
-
-    commands.help = helpObject(
-        commands,
-        `Utilities for analysing packets with filtering functionality.`,
-        `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND}</font>\nUtilities for analysing packets with filtering functionality.`
-    );
-
-    // init illegalPosCommands
+    //init illegalPosCommands
     for ( let command in commands.pos ) {
         illegalPosCommands.push( command );
     }
@@ -568,7 +747,7 @@ function utilityBox( mod ) {
         }
         if ( !Number.isInteger( parseInt( opcode ) ) ) {
             msg.text( 'Argument "' ).highlight( "opcode" );
-            msg.color.text( '" must be a number and an integer. But was ' );
+            msg.color().text( '" must be a number and an integer. But was ' );
             msg.value( typeof opcode ).color();
             msg.text( ` and ${Number.isInteger( opcode ) ? "an" : "no"} integer.` );
             chat.printMessage( msg.toHtml() );
@@ -578,7 +757,10 @@ function utilityBox( mod ) {
     }
 
     function analyseOpcode( opcode ) {
-        if ( opcode == undefined ) return chat.printMessage( util.formatWithOptions( Object.keys( analyser ) ) );
+        if ( opcode == undefined )
+            return chat.printMessage(
+                util.formatWithOptions( Object.keys( analyser ).map( x => ( x == "default" ? "selected: " + x.default : x ) ) )
+            );
         if ( !checkOpcode( opcode ) ) return;
         let groupName = "analyse-" + opcode;
         msg.clear();
@@ -595,13 +777,14 @@ function utilityBox( mod ) {
         });
         if ( !result.hook ) {
             delete analyser[opcode];
-            msg.disable( "Stop " );
+            msg.disable( "Stop" );
         } else {
             analyser[opcode] = undefined;
             analyser.default = opcode;
-            msg.enable( "Start " );
+            msg.enable( "Start" );
         }
-        msg.color().text( groupName );
+        msg.color().text( " scanning for " );
+        msg.text( groupName );
         if ( result.hook ) msg.text( "\nWaiting for data packet received..." );
         chat.printMessage( msg.toHtml() );
     }
@@ -616,7 +799,7 @@ function utilityBox( mod ) {
                 chat.printMessage( `${code} -> ${name}` );
                 if ( name != undefined ) {
                     try {
-                        let eventData = mod.dispatch.protocol.parse( version, code, "*", data, null );
+                        let eventData = mod.dispatch.protocol.parse( mod.dispatch.protocol.resolveIdentifier( name , "*" ), data );
                         chat.printMessage( `data: ${util.inspect( eventData )}` );
                     } catch ( err ) {
                         chat.printMessage( `data: ${err}` );
@@ -660,9 +843,18 @@ function utilityBox( mod ) {
                         ]
                     });
                 }
+                // if( !simpleLogger[name]) {
+                //     const opts = {
+                //         //errorEventName:'error',
+                //         logDirectory: GENERAL_LOG_PATH,
+                //         fileNamePattern: `${name}_<DATE>.log`,
+                //         dateFormat:'YYYY-MM-DD'
+                //     };
+                //     simpleLogger[name] = SimpleLogManager.createRollingFileLogger( opts );
+                // }
                 let e = null;
                 try {
-                    e = mod.dispatch.protocol.parse( version, code, "*", data, null );
+                    e = mod.dispatch.protocol.parse( mod.dispatch.protocol.resolveIdentifier( name , "*" ), data );
                 } catch ( _ ) {
                     // did not work, so skip
                 }
@@ -1012,45 +1204,45 @@ function utilityBox( mod ) {
             chat.printMessage( `C_CANCEL_SELECT_CHANNEL` );
         });
 
-        /*
-        # elite bar?
-        count inventory
-        offset inventory
-
-        int32 size
-
-        array inventory
-        - int32 slot
-        - int32 type # 1 = item, 2 = skill
-        - int32 skill
-        - int32 item
-        - int32 amount
-        - int32 cooldown
-        */
-        hookManager.addTemplate( "elite-bar", "S_PCBANGINVENTORY_DATALIST", 1, event => {
-            let s = "Elite bar:\n[";
-            for ( let item of event.inventory ) {
-                s += item.slot;
-                switch ( item.type ) {
-                    case 1:
-                        s += `# item: ${item.item}`;
-                        break;
-                    case 2:
-                        s += `# skill: ${item.skill}`;
-                        break;
-                    default:
-                        s += `# unknown (${item.type})`;
-                }
-                s += ` (count: ${item.amount}, cd: ${item.cooldown})\n`;
-            }
-            s += "]";
-            chat.printMessage( s );
-        });
-
-        /* int32 slot */
-        hookManager.addTemplate( "elite-bar", "C_PCBANGINVENTORY_USE_SLOT", 1, event => {
-            chat.printMessage( "Use elite-bar slot " + event.slot );
-        });
+        // /*
+        // # elite bar?
+        // count inventory
+        // offset inventory
+        //
+        // int32 size
+        //
+        // array inventory
+        // - int32 slot
+        // - int32 type # 1 = item, 2 = skill
+        // - int32 skill
+        // - int32 item
+        // - int32 amount
+        // - int32 cooldown
+        // */
+        // hookManager.addTemplate( "elite-bar", "S_PCBANGINVENTORY_DATALIST", 1, event => {
+        //     let s = "Elite bar:\n[";
+        //     for ( let item of event.inventory ) {
+        //         s += item.slot;
+        //         switch ( item.type ) {
+        //             case 1:
+        //                 s += `# item: ${item.item}`;
+        //                 break;
+        //             case 3:
+        //                 s += `# skill: ${item.skill}`;
+        //                 break;
+        //             default:
+        //                 s += `# unknown (${item.type})`;
+        //         }
+        //         s += ` (count: ${item.amount}, cd: ${item.cooldown})\n`;
+        //     }
+        //     s += "]";
+        //     chat.printMessage( s );
+        // });
+        //
+        // /* int32 slot */
+        // hookManager.addTemplate( "elite-bar", "C_PCBANGINVENTORY_USE_SLOT", 1, event => {
+        //     chat.printMessage( "Use elite-bar slot " + event.slot );
+        // });
 
         /*
         int32 set
@@ -1061,21 +1253,21 @@ function utilityBox( mod ) {
         - int32 item
         - int64 cooldown
         */
-        hookManager.addTemplate( "premium", "S_PREMIUM_SLOT_DATALIST", 1, event => {
+        hookManager.addTemplate( "premium", "S_PREMIUM_SLOT_DATALIST", 2, event => {
             let s = "Premium bar:\n[";
             for ( let item of event.inventory ) {
                 s += item.slot;
                 switch ( item.type ) {
                     case 1:
-                        s += `# item: ${item.item}`;
+                        s += `# item id: ${item.id}`;
                         break;
-                    case 2:
-                        s += `# skill: ${item.skill}`;
+                    case 3:
+                        s += `# skill id: ${item.id}`;
                         break;
                     default:
-                        s += `# unknown (${item.type})`;
+                        s += `# unknown type (${item.type}) id: ${item.id}`;
                 }
-                s += ` (cd: ${item.cooldown})\n`;
+                s += ` (count: ${item.amount}, cd: ${item.cooldown})\n`
             }
             s += "]";
             chat.printMessage( s );
@@ -1088,17 +1280,17 @@ function utilityBox( mod ) {
         int32 skill
         int32 item
         */
-        hookManager.addTemplate( "premium", "C_PREMIUM_SLOT_USE_SLOT", 1, event => {
+        hookManager.addTemplate( "premium", "C_USE_PREMIUM_SLOT", 1, event => {
             let s = `Use premium bar slot ${event.slot} (set:${event.set})`;
             switch ( event.type ) {
                 case 1:
-                    s += `# item: ${event.item}`;
+                    s += `# item id: ${event.id}`;
                     break;
-                case 2:
-                    s += `# skill: ${event.skill}`;
+                case 3:
+                    s += `# skill id: ${event.id}`;
                     break;
                 default:
-                    s += `# unknown (${event.type})`;
+                    s += `# unknown type (${event.type}) id: ${event.id}`;
             }
             chat.printMessage( s );
         });
@@ -1114,7 +1306,7 @@ function utilityBox( mod ) {
         int32 unk2
         int32 unk3 # 0? new
         */
-        hookManager.addTemplate( "buff", "S_ABNORMALITY_BEGIN", 3, e => {
+        hookManager.addTemplate( "buff", "S_ABNORMALITY_BEGIN", 4, e => {
             if ( mod.game.me.is( e.target ) )
                 chat.printMessage(
                     `Buff start: ${e.id} (dur:${e.duration}, stacks:${e.stacks},${e.source}->${e.target})`
@@ -1128,7 +1320,7 @@ function utilityBox( mod ) {
         int32  unk
         int32  stacks
         */
-        hookManager.addTemplate( "buff", "S_ABNORMALITY_REFRESH", 1, e => {
+        hookManager.addTemplate( "buff", "S_ABNORMALITY_REFRESH", 2, e => {
             if ( mod.game.me.is( e.target ) )
                 chat.printMessage( `Buff refresh: ${e.id} (dur:${e.duration}, stacks:${e.stacks},->${e.target})` );
         });
@@ -1148,7 +1340,7 @@ function utilityBox( mod ) {
         byte unk2
         byte unk3
         */
-        hookManager.addTemplate( "buff", "S_ABNORMALITY_FAIL", 1, e => {
+        hookManager.addTemplate( "buff", "S_ABNORMALITY_FAIL", 2, e => {
             if ( mod.game.me.is( e.target ) )
                 chat.printMessage( `Buff end: ${e.id} (->${e.target},unk1:${e.unk1},unk2:${e.unk2},unk3:${e.unk3})` );
         });
@@ -1164,7 +1356,7 @@ function utilityBox( mod ) {
         string authorName
         string message
         */
-        hookManager.addTemplate( "chat", "S_CHAT", 2, e => {
+        hookManager.addTemplate( "chat", "S_CHAT", 3, e => {
             chat.printMessage( e.message );
         });
         /*
@@ -1180,8 +1372,8 @@ function utilityBox( mod ) {
         string recipient
         string message
         */
-        hookManager.addTemplate( "chat", "S_WHISPER", 2, e => {
-            chat.printMessage( e.message );
+        hookManager.addTemplate( "chat", "S_WHISPER", 3, e => {
+            chat.printMessage( `${e.name}${e.gm?"[GM]":""} -> ${e.recipient}: "${e.message}"` );
         });
         /*
         offset authorName
@@ -1193,7 +1385,7 @@ function utilityBox( mod ) {
         string message
         */
         hookManager.addTemplate( "chat", "S_PRIVATE_CHAT", 1, e => {
-            chat.printMessage( e.message );
+            chat.printMessage( `${e.authorName}(${e.authorID}): "${e.message}"` );
         });
 
         /*
@@ -1207,8 +1399,8 @@ function utilityBox( mod ) {
         string name
         string message
         */
-        hookManager.addTemplate( "chat", "S_PARTY_MATCH_LINK", 1, e => {
-            chat.printMessage( e.name + " " + e.message );
+        hookManager.addTemplate( "chat", "S_PARTY_MATCH_LINK", 2, e => {
+            chat.printMessage( `${e.name}: "${e.message}" (${e.id}, ${e.unk2}=70?=>level limit)` );
         });
 
         /*
@@ -1511,15 +1703,27 @@ function stopScanning() {
 
 class UtilityBox {
     constructor( mod ) {
+        let lib = mod.require["util-lib"];
+        HookManager = lib["hook-manager"];
+        hookManager = new HookManager( mod );
+        MessageBuilder = lib["message-builder"];
+        msg = new MessageBuilder();
+        ChatHelper = lib["chat-helper"];
+        chat = new ChatHelper( mod );
+        FileHelper = lib["file-helper"];
         utilityBox( mod );
         this.mod = mod;
     }
 
     destructor() {
         let posData = [];
-        positions.forEach( ( v, k ) => posData.push([k, v]) );
-        FileHelper.saveJson( posData, POSITIONS_PATH );
-        FileHelper.saveJson( dynamicTemplates, TEMPLATES_PATH );
+        if( positions != undefined ) {
+            positions.forEach( ( v, k ) => posData.push([k, v]) );
+            FileHelper.saveJson( posData, POSITIONS_PATH );
+        }
+        if( dynamicTemplates != undefined ) {
+            FileHelper.saveJson( dynamicTemplates, TEMPLATES_PATH );
+        }
         stopScanning();
     }
 }
