@@ -3,7 +3,7 @@ const path = require( "path" );
 const fs = require( "fs" );
 const util = require( "util" );
 const PacketAnalyser = require( "./packet-analyser" );
-const SimpleLogManager = require( "simple-node-logger" ).createLogManager();
+// const SimpleLogManager = require( "simple-node-logger" ).createLogManager();
 
 const COLOR_ENABLE = "#56B4E9";
 const COLOR_DISABLE = "#e64500";
