@@ -25,6 +25,7 @@ const BUFFER_LENGTH_LONG = 512;
 const FORMAT_OPTIONS_SHORT = { colors: false, breakLength: 120, maxArrayLength: BUFFER_LENGTH_SHORT };
 const FORMAT_OPTIONS_COMMON = { colors: false, breakLength: 120 };
 const FORMAT_OPTIONS_LONG = { colors: false, breakLength: 120, maxArrayLength: BUFFER_LENGTH_LONG };
+
 let HookManager;
 let MessageBuilder;
 let ChatHelper;
@@ -75,11 +76,12 @@ function utilityBox( mod ) {
     }
     // const OPCODE_JSON = "opcodes.json";
     // const GROUPED_OPCODE_JSON = "groups.json";
-    let OPCODE_FILE_NAME, OPCODE_NAME_MAP, GROUPED_OPCODE_MAP, NAME_OPCODE_MAP;
+    let OPCODE_FILE_NAME, OPCODE_NAME_MAP, GROUPED_OPCODE_MAP, NAME_OPCODE_MAP, LATEST_VERSION_MAP;
     //
     // OPCODE_FILE_NAME = `../../node_modules/tera-data/map_base/protocol.${version}.map`;
     OPCODE_NAME_MAP = mod.dispatch.protocolMap.code; // opcode -> name
     NAME_OPCODE_MAP = mod.dispatch.protocolMap.name;
+    LATEST_VERSION_MAP = mod.dispatch.latestDefVersion;
     GROUPED_OPCODE_MAP = FileHelper.groupOpcodes( OPCODE_NAME_MAP ); // group (S,C,DBS,...) -> opcode
 
     // saveJsonData(OPCODE_JSON, Array.from(OPCODE_MAP));
@@ -98,13 +100,15 @@ function utilityBox( mod ) {
     // mod.game.on( 'leave_game', () => {
     // } );
 
-    // mod.game.contract.on( "begin", () => {
-    //     chat.printMessage( "Begin Contract." );
-    // } );
-    //
-    // mod.game.contract.on( "end", () => {
-    //     chat.printMessage( "End Contract." );
-    // } );
+    mod.game.contract.on( "begin", ( e ) => {
+        chat.printMessage( "Begin Contract." );
+        chat.printMessage( util.inspect( e ) );
+    });
+
+    mod.game.contract.on( "end", ( e ) => {
+        chat.printMessage( "End Contract." );
+        chat.printMessage( util.inspect( e ) );
+    });
 
     let illegalPosCommands = [];
 
@@ -283,6 +287,12 @@ function utilityBox( mod ) {
                     else scanOpcode( name, ...opcodes );
                 }
             },
+            def: {
+                $default: function( name, ...defs ) {
+                    if( arguments.length < 2 ) return printHelpList( this.help.scan.def );
+                    else scanDef( name, ... defs );
+                }
+            },
             verbose: {
                 $default: switchVerbose
             },
@@ -430,13 +440,24 @@ function utilityBox( mod ) {
                 },
                 raw: {
                     long() {
-                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} scan raw</font>`;
+                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} scan raw</font> <font color="${COLOR_VALUE}">[name-of-scan] opcode-1 opcode-2 ...</font>`;
                     },
                     short() {
-                        return `Scans for unknown packets.`;
+                        return `Scans for unknown and known packets once.`;
                     },
                     $default() {
                         printHelpList( this.help.scan.raw );
+                    },
+                },
+                def: {
+                    long() {
+                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} scan def</font> <font color="${COLOR_VALUE}">name def-1 def-2 ...</font>`;
+                    },
+                    short() {
+                        return `Scans for known packets with definition name.`;
+                    },
+                    $default() {
+                        printHelpList( this.help.scan.def );
                     },
                 },
                 verbose: {
@@ -796,13 +817,17 @@ function utilityBox( mod ) {
         let result = hookManager.hook( "raw", "*", "raw", ( code, data, fromServer, fake ) => {
             if ( !scannedCodes.includes( code ) ) {
                 let name = OPCODE_NAME_MAP.get( code );
-                chat.printMessage( `${code} -> ${name}` );
+                let version = LATEST_VERSION_MAP.get( name );
+                chat.printMessage( `${code} -> ${name} ${version?`[v${version}]`:""}` );
                 if ( name != undefined ) {
                     try {
-                        let eventData = mod.dispatch.protocol.parse( mod.dispatch.protocol.resolveIdentifier( name , "*" ), data );
-                        chat.printMessage( `data: ${util.inspect( eventData )}` );
+                        let eventData = mod.dispatch.protocol.parse(
+                            mod.dispatch.protocol.resolveIdentifier( name , version ? version : "*" ),
+                            data
+                        );
+                        if( verbose ) chat.printMessage( `data: ${util.inspect( eventData )}` );
                     } catch ( err ) {
-                        chat.printMessage( `data: ${err}` );
+                        if( verbose ) chat.printMessage( `data: ${err}` );
                     }
                 }
                 scannedCodes.push( code );
@@ -818,56 +843,99 @@ function utilityBox( mod ) {
         chat.printMessage( msg );
     }
 
-    function scanOpcode( name, ...opcodes ) {
+    function scanDef( scanName, ...defs ) {
+        if( scanName == undefined ) throw new Error(`Missing name (first) argument for this scan.`);
+        if( defs == undefined || defs.length == 0 || defs[0] == undefined ) {
+            throw new Error(`Missing def names for this scan. E.g. "S_CHAT"`);
+        }
+        msg.clear();
+        let groupName = "def-scan-" + scanName;
+        let noDefs = [];
+        if( !hookManager.hasActiveGroup( groupName ) ) {
+            for( let def of defs ) {
+                let code = NAME_OPCODE_MAP.get( def );
+                let version = LATEST_VERSION_MAP.get( def );
+                if( code ) hookManager.hook( groupName, def, version, ( e ) => {
+                    mod.command.message( `${def}${version?`[v${version}]`:""}(${code})` );
+                    if( verbose ) mod.command.message( `Data: ${util.inspect( e )}` );
+                });
+                else noDefs.push( def );
+            }
+            msg.enable( "Start" );
+        } else {
+            hookManager.unhookGroup( groupName );
+            msg.disable( "Stop" );
+        }
+        msg.color().text( " scanning " ).highlight( scanName ).color();
+        msg.text( " for definitions " ).value( util.inspect( defs ) );
+        chat.printMessage( msg.toHtml( true ) );
+        if( noDefs.length > 0 ) {
+            msg.text( "Could not scan following definitions: " );
+            msg.value( util.inspect( noDefs ) );
+            chat.printMessage( msg.toHtml( true ) );
+        }
+    }
+
+    /**
+     * Scans packets with specified opcodes. Logging them in file. File name will be
+     * generated as "raw-opcode-" + name/opcode number.
+     * @param  {[type]} scanName  the name of the scan
+     * @param  {[type]} opcodes   the opcodes to be scanned
+     */
+    function scanOpcode( scanName, ...opcodes ) {
         if ( opcodes == undefined || opcodes.length == 0 || opcodes[0] == undefined )
-            if ( Number.isInteger( parseInt( name ) ) ) opcodes = [name];
+            if ( Number.isInteger( parseInt( scanName ) ) ) opcodes = [scanName];
             else throw new Error( `Argument must be an integer opcode, when using only one argument.` );
-        if ( name == undefined ) name = opcodes.toString();
+        if ( scanName == undefined ) scanName = opcodes.toString();
         msg.clear();
         opcodes = opcodes.map( x => parseInt( x ) );
-        let groupName = "raw-opcode-" + name;
+        let groupName = "opcode-scan-" + scanName;
         let result = hookManager.hook( groupName, "*", "raw", ( code, data, fromServer, fake ) => {
             if ( opcodes.includes( code ) ) {
                 let left = fake && fromServer ? "P" : "S";
                 let arrow = fromServer ? "->" : "<-";
                 let right = fake && !fromServer ? "P" : "C";
-                mod.command.message( `${left} ${arrow} ${right} ${code}` );
-                if ( !logger[name]) {
-                    logger[name] = bunyan.createLogger({
+                let opcodeName = OPCODE_NAME_MAP.get( code );
+                let version = LATEST_VERSION_MAP.get( opcodeName );
+                mod.command.message( `${left} ${arrow} ${right} ${code} (${opcodeName}${version?`[v${version}]`:""})` );
+                if ( !logger[scanName]) {
+                    logger[scanName] = bunyan.createLogger({
                         name: "opcode",
                         streams: [
                             {
-                                path: path.join( OPCODES_PATH, name + ".log" ),
+                                path: path.join( OPCODES_PATH, scanName + ".log" ),
                                 level: "debug"
                             }
                         ]
                     });
                 }
-                // if( !simpleLogger[name]) {
+                // if( !simpleLogger[scanName]) {
                 //     const opts = {
                 //         //errorEventName:'error',
                 //         logDirectory: GENERAL_LOG_PATH,
-                //         fileNamePattern: `${name}_<DATE>.log`,
+                //         fileNamePattern: `${scanName}_<DATE>.log`,
                 //         dateFormat:'YYYY-MM-DD'
                 //     };
-                //     simpleLogger[name] = SimpleLogManager.createRollingFileLogger( opts );
+                //     simpleLogger[scanName] = SimpleLogManager.createRollingFileLogger( opts );
                 // }
                 let e = null;
                 try {
-                    e = mod.dispatch.protocol.parse( mod.dispatch.protocol.resolveIdentifier( name , "*" ), data );
+                    e = mod.dispatch.protocol.parse( mod.dispatch.protocol.resolveIdentifier( opcodeName , version ? version : "*" ), data );
+                    if( verbose ) mod.command.message( `Data: ${util.inspect( e )}` );
                 } catch ( _ ) {
                     // did not work, so skip
                 }
                 if ( e != null ) {
-                    logger[name].debug({
-                        def: OPCODE_NAME_MAP.get( code ) != undefined ? OPCODE_NAME_MAP.get( code ) : "undefined",
+                    logger[scanName].debug({
+                        def: opcodeName != undefined ? opcodeName : "undefined",
+                        version: version,
                         event: e
                     });
                 } else {
                     let header = data.slice( 0, 4 );
                     let body = data.slice( 4 );
-                    logger[name].debug({
-                        def: OPCODE_NAME_MAP.get( code ) != undefined ? OPCODE_NAME_MAP.get( code ) : "undefined",
+                    logger[scanName].debug({
+                        def: opcodeName != undefined ? opcodeName : "undefined",
                         length: header.readUInt16LE(),
                         opcode: header.readUInt16LE( 2 ),
                         data: body,
@@ -878,7 +946,7 @@ function utilityBox( mod ) {
             }
         });
         if ( !result.hook ) {
-            delete logger[name];
+            delete logger[scanName];
             hookManager.unhookGroup( groupName );
             msg.disable( "Stop " );
         } else {
