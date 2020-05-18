@@ -5,5 +5,5 @@ groups.json
 out
 logs
 opcodes
-config.json
+*config.json
 templates.json
