@@ -100,15 +100,13 @@ function utilityBox( mod ) {
     // mod.game.on( 'leave_game', () => {
     // } );
 
-    mod.game.contract.on( "begin", ( e ) => {
-        chat.printMessage( "Begin Contract." );
-        chat.printMessage( util.inspect( e ) );
-    });
-
-    mod.game.contract.on( "end", ( e ) => {
-        chat.printMessage( "End Contract." );
-        chat.printMessage( util.inspect( e ) );
-    });
+    // mod.game.contract.on( "begin", ( e ) => {
+    //     chat.printMessage( `Begin Contract: <font color="${COLOR_VALUE}">${util.inspect( e )}</font>` );
+    // });
+    //
+    // mod.game.contract.on( "end", ( e ) => {
+    //     chat.printMessage( `End Contract: <font color="${COLOR_VALUE}">${util.inspect( e )}</font>` );
+    // });
 
     let illegalPosCommands = [];
 
