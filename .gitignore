@@ -2,8 +2,14 @@
 positions.json
 opcodes.json
 groups.json
+*config.json
+templates.json
+
 out
 logs
 opcodes
-*config.json
-templates.json
+
+# Manifest-Generator
+mani-gen*
+.mani*
+manifest-gen*

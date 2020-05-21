@@ -1,9 +1,8 @@
 {
     "files": {
         "index.js": "9b41bf35ee9db0cd415250fa1a5248be03678b74ce94eeb8696be6ae4dff7afa",
-        "module.json": "ce4c920f00606f6b184d2542f2efe679bb01d99854d0e415ccf87f406266e3ff",
+        "module.json": "1bcb4ed042e0910a5f8d8552a8e2e2cae706a1872107fce66b6f84979c024c8b",
         "settings_migrator.js": "37d44addffcd96b157b29e322452d3328b922c4eb225a89768c3afc46db8f38b",
-        "templates.json": "4c12e4ef8170eb7fdf033946f02efe1b113cb5b5f5c0d4a13a5dadeda2bbc60c",
         "packet-analyser.js": "80aacad39038056069047a0ed223d4c2bf1adc1406c19e79751b9b05894331a5",
         "package-lock.json": "8275486eb4bffd8390e31280094ad04c93070b546d607532cd25a5c26da519e5",
         "node_modules/ncp\\test\\regular-fixtures\\src\\c": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
