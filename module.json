@@ -2,10 +2,10 @@
     "name": "utility-box",
     "author": "aurelius88",
     "description": "Tool for help developing modules. Mostly analysing packets and stuff like that.",
-    "version": "0.3.8-dev",
+    "version": "0.3.9-dev",
     "options": {
         "niceName": "Utility-Box (dev)",
-        "settingsVersion": 1,
+        "settingsVersion": 2,
         "settingsFile": "config.json",
         "settingsMigrator": "settings_migrator.js"
     },

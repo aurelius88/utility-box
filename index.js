@@ -2,6 +2,7 @@ const bunyan = require( "bunyan" );
 const path = require( "path" );
 const fs = require( "fs" );
 const util = require( "util" );
+const SettingsUI = require( "tera-mod-ui" ).Settings;
 const PacketAnalyser = require( "./packet-analyser" );
 // const SimpleLogManager = require( "simple-node-logger" ).createLogManager();
 
@@ -20,9 +21,11 @@ const GENERAL_LOG_PATH = path.join( __dirname, "logs" );
 const TEMPLATES_PATH = path.join( __dirname, "templates.json" );
 
 const ANALYSED_LENGTH_SHORT = 4;
+const BUFFER_LENGTH_EXTRA_SHORT = 3;
 const BUFFER_LENGTH_SHORT = 16;
 const BUFFER_LENGTH_LONG = 512;
-const FORMAT_OPTIONS_SHORT = { colors: false, breakLength: 120, maxArrayLength: BUFFER_LENGTH_SHORT };
+const FORMAT_OPTIONS_EXTRA_SHORT = { colors: false, breakLength: 120, maxArrayLength: BUFFER_LENGTH_EXTRA_SHORT, compact: 6, depth: 2 }
+const FORMAT_OPTIONS_SHORT = { colors: false, breakLength: 120, maxArrayLength: BUFFER_LENGTH_SHORT, compact: 6, depth: 1 };
 const FORMAT_OPTIONS_COMMON = { colors: false, breakLength: 120 };
 const FORMAT_OPTIONS_LONG = { colors: false, breakLength: 120, maxArrayLength: BUFFER_LENGTH_LONG };
 
@@ -47,7 +50,7 @@ function utilityBox( mod ) {
 
     let gameId = null,
         lastLocation = null,
-        verbose = false;
+        verbose = mod.settings.scanVerbose;
     let analyser = {};
     // chat.printMessage( "Version: " + version, true );
     const POSITIONS_DATA = FileHelper.loadJson( POSITIONS_PATH );
@@ -115,15 +118,7 @@ function utilityBox( mod ) {
         return e => {
             for ( let v of vars ) {
                 let value = eval( "e." + v );
-                if ( typeof value == "bigint" ) value = value.toString();
-                if ( Array.isArray( value ) ) {
-                    chat.printMessage( v + " = " );
-                    for ( let element of value ) {
-                        chat.printMessage( JSON.stringify( element ) );
-                    }
-                } else {
-                    chat.printMessage( v + " = " + JSON.stringify( value ) );
-                }
+                chat.printMessage( `${v} = <font color="${COLOR_VALUE}">${util.inspect( value )}</font>` );
             }
         };
     }
@@ -137,6 +132,11 @@ function utilityBox( mod ) {
     }
 
     let commands = {
+        config: function() {
+            if ( ui ) {
+                ui.show();
+            }
+        },
         list: {
             opcodes: {
                 $default: printOpcodes
@@ -816,16 +816,24 @@ function utilityBox( mod ) {
             if ( !scannedCodes.includes( code ) ) {
                 let name = OPCODE_NAME_MAP.get( code );
                 let version = LATEST_VERSION_MAP.get( name );
-                chat.printMessage( `${code} -> ${name} ${version?`[v${version}]`:""}` );
+                let scanMsg = `${code} -> ${name} ${version?`[v${version}]`:""}`
+                chat.printMessage( scanMsg );
+                if( mod.settings.consoleOut ) mod.log( scanMsg );
                 if ( name != undefined ) {
                     try {
                         let eventData = mod.dispatch.protocol.parse(
                             mod.dispatch.protocol.resolveIdentifier( name , version ? version : "*" ),
                             data
                         );
-                        if( verbose ) chat.printMessage( `data: ${util.inspect( eventData )}` );
+                        if( verbose ) {
+                            let dataMsg = `data: ${ util.inspect( eventData, FORMAT_OPTIONS_SHORT ) }`;
+                            chat.printMessage( dataMsg );
+                            if( mod.settings.consoleOut )
+                                mod.log( dataMsg );
+                        }
                     } catch ( err ) {
-                        if( verbose ) chat.printMessage( `data: ${err}` );
+                        if( verbose )
+                            chat.printMessage( `data: ${ util.formatWithOptions( FORMAT_OPTIONS_SHORT, err ) }` );
                     }
                 }
                 scannedCodes.push( code );
@@ -855,7 +863,7 @@ function utilityBox( mod ) {
                 let version = LATEST_VERSION_MAP.get( def );
                 if( code ) hookManager.hook( groupName, def, version, ( e ) => {
                     mod.command.message( `${def}${version?`[v${version}]`:""}(${code})` );
-                    if( verbose ) mod.command.message( `Data: ${util.inspect( e )}` );
+                    if( verbose ) mod.command.message( `Data: ${util.inspect( e, FORMAT_OPTIONS_SHORT )}` );
                 });
                 else noDefs.push( def );
             }
@@ -919,7 +927,7 @@ function utilityBox( mod ) {
                 let e = null;
                 try {
                     e = mod.dispatch.protocol.parse( mod.dispatch.protocol.resolveIdentifier( opcodeName , version ? version : "*" ), data );
-                    if( verbose ) mod.command.message( `Data: ${util.inspect( e )}` );
+                    if( verbose ) mod.command.message( `Data: ${ util.inspect( e, {} ) }` );
                 } catch ( _ ) {
                     // did not work, so skip
                 }
@@ -1008,7 +1016,7 @@ function utilityBox( mod ) {
     }
 
     function switchVerbose() {
-        verbose = !verbose;
+        mod.settings.scanVerbose = verbose = !verbose;
         chat.printMessage(
             "Verbose mode "
                 + ( verbose ? '<font color="#56B4E9">enabled</font>.' : '<font color="#E69F00">disabled</font>.' )
@@ -1767,6 +1775,8 @@ function stopScanning() {
     chat.printMessage( "All hooks stopped." );
 }
 
+let ui = null;
+
 class UtilityBox {
     constructor( mod ) {
         let lib = mod.require["util-lib"];
@@ -1779,9 +1789,22 @@ class UtilityBox {
         FileHelper = lib["file-helper"];
         utilityBox( mod );
         this.mod = mod;
+
+        // Settings UI
+        if ( global.TeraProxy.GUIMode ) {
+            let structure = require( "./settings_structure" );
+            ui = new SettingsUI( mod, structure, mod.settings, { height: 232 });
+            ui.on( "update", settings => {
+                mod.settings = settings;
+            });
+        }
     }
 
     destructor() {
+        if ( ui ) {
+            ui.close();
+            ui = null;
+        }
         let posData = [];
         if( positions != undefined ) {
             positions.forEach( ( v, k ) => posData.push([k, v]) );

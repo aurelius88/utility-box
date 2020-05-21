@@ -1,10 +1,11 @@
 {
     "files": {
-        "index.js": "9b41bf35ee9db0cd415250fa1a5248be03678b74ce94eeb8696be6ae4dff7afa",
-        "module.json": "fcd766f2ece1c957e2f6dd6114c8cca5946194b1d517a71a7768cc29389cf784",
-        "settings_migrator.js": "37d44addffcd96b157b29e322452d3328b922c4eb225a89768c3afc46db8f38b",
+        "index.js": "7bf370d14673f56e8b766c5ea483236f6e19ecda745803f5701d94d5f87b7cbc",
+        "module.json": "c13d4060a468fc2bbd9f1867ca09634b42aff0d253c39318394f57e5afdca3eb",
+        "settings_migrator.js": "99a1968549cd2b4a31f818b7ccc973d08b16e46bd2b86f40a3f19763169e41c7",
         "packet-analyser.js": "80aacad39038056069047a0ed223d4c2bf1adc1406c19e79751b9b05894331a5",
         "package-lock.json": "0d7aa63124cfca17f7ea59aa8db4996e45c4e80a34bd60059b27ce9698196cea",
+        "settings_structure.js": "e64b2ca3f5a9ccbf552e752c8b7e2a7a18f7f4c8e49468a7f84d1f33f7d24b79"
         "node_modules/ncp\\test\\regular-fixtures\\src\\c": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "node_modules/ncp\\test\\regular-fixtures\\src\\d": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "node_modules/ncp\\test\\regular-fixtures\\src\\f": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
