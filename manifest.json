@@ -1,10 +1,10 @@
 {
     "files": {
         "index.js": "9b41bf35ee9db0cd415250fa1a5248be03678b74ce94eeb8696be6ae4dff7afa",
-        "module.json": "1bcb4ed042e0910a5f8d8552a8e2e2cae706a1872107fce66b6f84979c024c8b",
+        "module.json": "fcd766f2ece1c957e2f6dd6114c8cca5946194b1d517a71a7768cc29389cf784",
         "settings_migrator.js": "37d44addffcd96b157b29e322452d3328b922c4eb225a89768c3afc46db8f38b",
         "packet-analyser.js": "80aacad39038056069047a0ed223d4c2bf1adc1406c19e79751b9b05894331a5",
-        "package-lock.json": "8275486eb4bffd8390e31280094ad04c93070b546d607532cd25a5c26da519e5",
+        "package-lock.json": "0d7aa63124cfca17f7ea59aa8db4996e45c4e80a34bd60059b27ce9698196cea",
         "node_modules/ncp\\test\\regular-fixtures\\src\\c": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "node_modules/ncp\\test\\regular-fixtures\\src\\d": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "node_modules/ncp\\test\\regular-fixtures\\src\\f": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
