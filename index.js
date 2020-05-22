@@ -21,11 +21,11 @@ const GENERAL_LOG_PATH = path.join( __dirname, "logs" );
 const TEMPLATES_PATH = path.join( __dirname, "templates.json" );
 
 const ANALYSED_LENGTH_SHORT = 4;
-const BUFFER_LENGTH_EXTRA_SHORT = 3;
+const BUFFER_LENGTH_EXTRA_SHORT = 1;
 const BUFFER_LENGTH_SHORT = 16;
 const BUFFER_LENGTH_LONG = 512;
-const FORMAT_OPTIONS_EXTRA_SHORT = { colors: false, breakLength: 120, maxArrayLength: BUFFER_LENGTH_EXTRA_SHORT, compact: 6, depth: 2 }
-const FORMAT_OPTIONS_SHORT = { colors: false, breakLength: 120, maxArrayLength: BUFFER_LENGTH_SHORT, compact: 6, depth: 1 };
+const FORMAT_OPTIONS_EXTRA_SHORT = { colors: false, breakLength: 80, maxArrayLength: BUFFER_LENGTH_EXTRA_SHORT, compact: 4, depth: 2 }
+const FORMAT_OPTIONS_SHORT = { colors: false, breakLength: 80, maxArrayLength: BUFFER_LENGTH_SHORT, compact: 4 };
 const FORMAT_OPTIONS_COMMON = { colors: false, breakLength: 120 };
 const FORMAT_OPTIONS_LONG = { colors: false, breakLength: 120, maxArrayLength: BUFFER_LENGTH_LONG };
 
@@ -68,7 +68,7 @@ function utilityBox( mod ) {
                     template.group,
                     template.def,
                     template.version,
-                    generateFunction( template.vars )
+                    generateFunction( template.def, template.version, template.vars )
                 );
             } catch ( err ) {
                 mod.log( `Could not read template: ${err}` );
@@ -113,13 +113,21 @@ function utilityBox( mod ) {
 
     let illegalPosCommands = [];
 
-    function generateFunction( vars ) {
+    function generateFunction( def, version, vars ) {
+        let msg = new MessageBuilder();
         // e is used in eval
         return e => {
-            for ( let v of vars ) {
-                let value = eval( "e." + v );
-                chat.printMessage( `${v} = <font color="${COLOR_VALUE}">${util.inspect( value )}</font>` );
+            chat.printMessage( `<font color="${COLOR_HIGHLIGHT}">${def}[v${version}]:` )
+            if( !vars || !vars.length ) msg.text( util.inspect( e, FORMAT_OPTIONS_EXTRA_SHORT ) );
+            else {
+                let obj = {}
+                for ( let v of vars ) {
+                    let value = eval( "e." + v );
+                    obj[v] = value;
+                }
+                msg.text( util.inspect( obj, FORMAT_OPTIONS_EXTRA_SHORT ) );
             }
+            chat.printMessage( msg.toHtml( true ) );
         };
     }
 
@@ -152,7 +160,7 @@ function utilityBox( mod ) {
         hook: {
             add: {
                 $default: function( group, def, version, ...vars ) {
-                    if ( arguments.length < 4 ) return printHelpList( this.help.hook.add );
+                    if ( arguments.length < 3 ) return printHelpList( this.help.hook.add );
                     let isNum = isNumber( version );
                     let isCorrectVersion = isVersion( version );
                     if ( typeof version == "string" && !( isNum || isCorrectVersion ) ) {
@@ -165,17 +173,18 @@ function utilityBox( mod ) {
                             `There is no hook named "<font color="${COLOR_HIGHLIGHT}">${def}</font>".`
                         );
                     }
-                    chat.printMessage(
-                        `Successfully added hook to group:${group}, name: ${def}, version: ${version}, vars: ${JSON.stringify(
-                            vars
-                        )}`
-                    );
                     if ( isNumber ) version = parseInt( version );
-                    let result = hookManager.addTemplate( group, def, version, generateFunction( vars ) );
+                    let result = hookManager.addTemplate( group, def, version, generateFunction( def, version, vars ) );
 
                     if ( !result.group ) {
-                        chat.printMessage( "Hook does already exist." );
+                        chat.printMessage( "Could not add hook. Hook does already exist." );
                     } else {
+                        chat.printMessage(
+                            `Successfully added hook to group: <font color="${COLOR_VALUE}">${group}</font>, `
+                            +`name: <font color="${COLOR_VALUE}">${def}</font>, `
+                            +`version: <font color="${COLOR_VALUE}">${version}</font>, `
+                            +`vars: <font color="${COLOR_VALUE}">${util.inspect( vars )}</font>`
+                        );
                         dynamicTemplates.push({ group: group, def: def, version: version, vars: vars });
                     }
                 }
@@ -193,12 +202,19 @@ function utilityBox( mod ) {
                     }
                 },
                 $default: function( name, group ) {
-                    if ( !name ) printHelpList( this.help.hook.remove );
+                    if ( !name ) return printHelpList( this.help.hook.remove );
                     if ( hookManager.removeTemplateByName( name, group ) ) {
                         chat.printMessage(
                             `Template named <font color="${COLOR_VALUE}">${name}</font> ${
                                 group ? `in <font color="${COLOR_VALUE}">${group}</font> ` : ""
                             }successfully removed.`
+                        );
+                    } else {
+                        chat.printMessage(
+                            `Could not find template named <font color="${COLOR_VALUE}">${name}</font> ${
+                                group ? `in <font color="${COLOR_VALUE}">${group}</font> ` : ""
+                            }. Check if <font color="${COLOR_COMMAND}">name</font> (first argument)`
+                            +` and <font color="${COLOR_COMMAND}">group</font> (second argument) are correct.`
                         );
                     }
                 }
@@ -242,6 +258,12 @@ function utilityBox( mod ) {
                     msg.text( "Buffer: " );
                     let curBuffer = analyser[analyser.default].currentBufferSegment;
                     msg.value( util.formatWithOptions( FORMAT_OPTIONS_SHORT, curBuffer ) );
+                    chat.printMessage( msg.toHtml( true ) );
+                    let analysedPacket = analyser[analyser.default].analysedPacket;
+                    msg.value( util.formatWithOptions( FORMAT_OPTIONS_SHORT, analysedPacket ) );
+                    msg.color().text( " (" );
+                    msg.highlight( analyser[analyser.default].selectedPosition );
+                    msg.color().text( ")" );
                     chat.printMessage( msg.toHtml() );
                 }
             },
@@ -253,6 +275,12 @@ function utilityBox( mod ) {
                     msg.text( "Buffer: " );
                     let curBuffer = analyser[analyser.default].currentBufferSegment;
                     msg.value( util.formatWithOptions( FORMAT_OPTIONS_SHORT, curBuffer ) );
+                    chat.printMessage( msg.toHtml( true ) );
+                    let analysedPacket = analyser[analyser.default].analysedPacket;
+                    msg.value( util.formatWithOptions( FORMAT_OPTIONS_SHORT, analysedPacket ) );
+                    msg.color().text( " (" );
+                    msg.highlight( analyser[analyser.default].selectedPosition );
+                    msg.color().text( ")" );
                     chat.printMessage( msg.toHtml() );
                 }
             },
@@ -400,7 +428,7 @@ function utilityBox( mod ) {
                         return `Adds a hook template that can be activated with "scan".`;
                     },
                     long() {
-                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook add</font> <font color="${COLOR_VALUE}">group hook-name version variables</font>\nWhere...\n<font color="${COLOR_VALUE}">group</font> is the name of the group the hook should be assigned to.\n<font color="${COLOR_VALUE}">hook-name</font> is the name of the hook packet such as "S_CHAT".\n<font color="${COLOR_VALUE}">version</font> is the version of the packet. Should be an integer. Can also be "*" for the latest version or "raw" to create a raw hook.\n<font color="${COLOR_VALUE}">vars</font> are the variables of the packet that should be printed. Each variable name is seperated by a whitespace. There should be at least 1 variable.`;
+                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook add</font> <font color="${COLOR_VALUE}">group hook-name version variables</font>\nWhere <font color="${COLOR_VALUE}">group</font> is the name of the group the hook should be assigned to.\n<font color="${COLOR_VALUE}">hook-name</font> is the name of the hook packet such as "S_CHAT".\n<font color="${COLOR_VALUE}">version</font> is the version of the packet. Should be an integer. Can also be "*" for the latest version or "raw" to create a raw hook.\n<font color="${COLOR_VALUE}">vars</font> [optional] are the variables of the packet that should be printed. Each variable name is seperated by a whitespace. If not specified, the whole data will be printed.`;
                     }
                 },
                 remove: {
@@ -519,7 +547,7 @@ function utilityBox( mod ) {
                     msg.clear();
                     msg.text( "USAGE: " ).command( `${ROOT_COMMAND} analyse ` );
                     msg.value( "opcode" ).color();
-                    msg.text( "Where...\n" ).value( "opcode" );
+                    msg.text( "\nWhere " ).value( "opcode" );
                     msg.color().text( ` is the opcode of the packet that should be analysed` );
                     return msg.toHtml( true );
                 },
@@ -547,7 +575,7 @@ function utilityBox( mod ) {
                         msg.clear();
                         msg.text( "USAGE: " ).command( `${ROOT_COMMAND} analyse choose` );
                         msg.value( "type" ).color();
-                        msg.text( "Where...\n" ).value( "type" );
+                        msg.text( "\nWhere " ).value( "type" );
                         msg.color().text( ` is one of the types listed above by this command or by "${ROOT_COMMAND} analyse start"` );
                         return msg.toHtml( true );
                     },
@@ -589,7 +617,7 @@ function utilityBox( mod ) {
                         msg.clear();
                         msg.text( "USAGE: " ).command( `${ROOT_COMMAND} analyse select` );
                         msg.value( "opcode" ).color();
-                        msg.text( "Where...\n" ).value( "opcode" );
+                        msg.text( "\nWhere " ).value( "opcode" );
                         msg.color().text( ` is the opcode of the packet that should be selected as "currently analysing"` );
                         return msg.toHtml( true );
                     },
@@ -776,10 +804,12 @@ function utilityBox( mod ) {
     }
 
     function analyseOpcode( opcode ) {
-        if ( opcode == undefined )
-            return chat.printMessage(
+        if ( opcode == undefined ) {
+            if( !analyser.default ) return printHelpList( this.help.analyse );
+            else return chat.printMessage(
                 util.formatWithOptions( Object.keys( analyser ).map( x => ( x == "default" ? "selected: " + x.default : x ) ) )
             );
+        }
         if ( !checkOpcode( opcode ) ) return;
         let groupName = "analyse-" + opcode;
         msg.clear();
@@ -826,7 +856,7 @@ function utilityBox( mod ) {
                             data
                         );
                         if( verbose ) {
-                            let dataMsg = `data: ${ util.inspect( eventData, FORMAT_OPTIONS_SHORT ) }`;
+                            let dataMsg = `data: ${ util.inspect( eventData, FORMAT_OPTIONS_EXTRA_SHORT ) }`;
                             chat.printMessage( dataMsg );
                             if( mod.settings.consoleOut )
                                 mod.log( dataMsg );
@@ -863,7 +893,7 @@ function utilityBox( mod ) {
                 let version = LATEST_VERSION_MAP.get( def );
                 if( code ) hookManager.hook( groupName, def, version, ( e ) => {
                     mod.command.message( `${def}${version?`[v${version}]`:""}(${code})` );
-                    if( verbose ) mod.command.message( `Data: ${util.inspect( e, FORMAT_OPTIONS_SHORT )}` );
+                    if( verbose ) mod.command.message( `Data: ${util.inspect( e, FORMAT_OPTIONS_EXTRA_SHORT )}` );
                 });
                 else noDefs.push( def );
             }
@@ -927,7 +957,7 @@ function utilityBox( mod ) {
                 let e = null;
                 try {
                     e = mod.dispatch.protocol.parse( mod.dispatch.protocol.resolveIdentifier( opcodeName , version ? version : "*" ), data );
-                    if( verbose ) mod.command.message( `Data: ${ util.inspect( e, {} ) }` );
+                    if( verbose ) mod.command.message( `Data: ${ util.inspect( e, FORMAT_OPTIONS_EXTRA_SHORT ) }` );
                 } catch ( _ ) {
                     // did not work, so skip
                 }
