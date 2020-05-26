@@ -863,7 +863,7 @@ function utilityBox( mod ) {
                         }
                     } catch ( err ) {
                         if( verbose )
-                            chat.printMessage( `data: ${ util.formatWithOptions( FORMAT_OPTIONS_SHORT, err ) }` );
+                            chat.printMessage( `data: ${ util.formatWithOptions( FORMAT_OPTIONS_SHORT, err.message ) }` );
                     }
                 }
                 scannedCodes.push( code );
@@ -965,7 +965,7 @@ function utilityBox( mod ) {
                     logger[scanName].debug({
                         def: opcodeName != undefined ? opcodeName : "undefined",
                         version: version,
-                        event: e
+                        event: serializeData( e )
                     });
                 } else {
                     let header = data.slice( 0, 4 );
@@ -975,7 +975,7 @@ function utilityBox( mod ) {
                         length: header.readUInt16LE(),
                         opcode: header.readUInt16LE( 2 ),
                         data: body,
-                        hex: addSpace( body.toString( "hex" ), 4 ),
+                        hex: addSpace( body.toString( "hex" ), 8 ),
                         string: body.toString()
                     });
                 }

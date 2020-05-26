@@ -1,7 +1,7 @@
 {
     "files": {
-        "index.js": "3f91e2b2fbc6729eb307c38ddd7ac9516098f453fbfa59adc1b9024f93ad16a0",
-        "module.json": "6a0d0e275535eed76fe4b0143d53123592fcaa8191e684094d54f3a29d002b88",
+        "index.js": "c7689e1f2286866c80420430f3d19022232bda13c367335ba470b86f16b7e230",
+        "module.json": "516d14ca33ab34f2d870da6580855590f1bbd45e66bfaa2938a03fd6eb18df39",
         "settings_migrator.js": "99a1968549cd2b4a31f818b7ccc973d08b16e46bd2b86f40a3f19763169e41c7",
         "packet-analyser.js": "80aacad39038056069047a0ed223d4c2bf1adc1406c19e79751b9b05894331a5",
         "package-lock.json": "0d7aa63124cfca17f7ea59aa8db4996e45c4e80a34bd60059b27ce9698196cea",
