@@ -67,7 +67,7 @@ function utilityBox( mod ) {
                 hookManager.addTemplate(
                     template.group,
                     template.def,
-                    template.version,
+                    template.version ? template.version : "*",
                     generateFunction( template.def, template.version, template.vars )
                 );
             } catch ( err ) {
@@ -117,7 +117,8 @@ function utilityBox( mod ) {
         let msg = new MessageBuilder();
         // e is used in eval
         return e => {
-            chat.printMessage( `<font color="${COLOR_HIGHLIGHT}">${def}[v${version}]:` )
+            chat.printMessage( `<font color="${COLOR_HIGHLIGHT}">${ def } `
+                +`${ version ? `[v ${ version }]` : "[no version]" }</font> (${ NAME_OPCODE_MAP.get( def ) }):` )
             if( !vars || !vars.length ) msg.text( util.inspect( e, FORMAT_OPTIONS_EXTRA_SHORT ) );
             else {
                 let obj = {}
@@ -147,44 +148,52 @@ function utilityBox( mod ) {
         },
         list: {
             opcodes: {
-                $default: printOpcodes
+                $none: printOpcodes,
+                $default() { printHelpList( this.help.list.opcodes ); }
             },
             active: {
-                $default: printActiveGroups
+                $none: printActiveGroups,
+                $default() { printHelpList( this.help.list.active ); }
             },
             templates: {
-                $default: printTemplates
+                $none: printTemplates,
+                $default() { printHelpList( this.help.list.templates ); }
             },
-            $default: printGroups
+            $none: printGroups,
+            $default() { printHelpList( this.help.list ); }
         },
         hook: {
             add: {
-                $default: function( group, def, version, ...vars ) {
+                $default: function( def, group, version, ...vars ) {
                     if ( arguments.length < 3 ) return printHelpList( this.help.hook.add );
+                    msg.clear();
                     let isNum = isNumber( version );
-                    let isCorrectVersion = isVersion( version );
-                    if ( typeof version == "string" && !( isNum || isCorrectVersion ) ) {
-                        return chat.printMessage(
-                            `Illegal version "<font color "${COLOR_HIGHLIGHT}">${version}</font>". Should be "<font color "${COLOR_HIGHLIGHT}">*</font>", "<font color "${COLOR_HIGHLIGHT}">raw</font>" or a positive integer number <font color "${COLOR_HIGHLIGHT}">0,1,2,...</font>.`
-                        );
+                    let isValidVersion = isVersion( version );
+                    if ( typeof version == "string" && !isValidVersion ) {
+                        msg.text( 'Illegal version "' ).value( version ).color();
+                        msg.text( '". Should be "' ).value( "*" ).color();
+                        msg.text( '", "' ).value( "raw" ).color();
+                        msg.text( '" or a positive integer number (e.g. ' ).value( "0, 1, 2 ..." ).color();
+                        msg.text( ")." );
+                        return chat.printMessage( msg.toHtml( true ) );
                     }
                     if ( !NAME_OPCODE_MAP.has( def ) ) {
-                        return chat.printMessage(
-                            `There is no hook named "<font color="${COLOR_HIGHLIGHT}">${def}</font>".`
-                        );
+                        msg.text( 'There is no hook named "' ).value( def ).color();
+                        msg.text( '".' );
+                        return chat.printMessage( msg.toHtml( true ) );
                     }
-                    if ( isNumber ) version = parseInt( version );
+                    if ( isNum ) version = parseInt( version );
                     let result = hookManager.addTemplate( group, def, version, generateFunction( def, version, vars ) );
 
                     if ( !result.group ) {
                         chat.printMessage( "Could not add hook. Hook does already exist." );
                     } else {
-                        chat.printMessage(
-                            `Successfully added hook to group: <font color="${COLOR_VALUE}">${group}</font>, `
-                            +`name: <font color="${COLOR_VALUE}">${def}</font>, `
-                            +`version: <font color="${COLOR_VALUE}">${version}</font>, `
-                            +`vars: <font color="${COLOR_VALUE}">${util.inspect( vars )}</font>`
-                        );
+                        msg.text( 'Successfully added hook to group "' ).value( group ).color();
+                        msg.text( '" with definition named "' ).value( def ).color();
+                        msg.text( '" version "' ).value( version ).color();
+                        msg.text( ' and variables: ' ).value( util.inspect( vars ) ).color();
+                        msg.text( '.' );
+                        chat.printMessage( msg.toHtml( true ) );
                         dynamicTemplates.push({ group: group, def: def, version: version, vars: vars });
                     }
                 }
@@ -306,23 +315,24 @@ function utilityBox( mod ) {
         },
         scan: {
             raw: {
-                $default: function( name, ...opcodes ) {
-                    if ( arguments.length == 0 || ( !name && opcodes[0] == undefined ) ) rawScan();
+                $default( name, ...opcodes ) {
+                    if ( arguments.length == 0 || ( !name && opcodes[0] == undefined ) ) scanRaw();
                     else if ( arguments.length < 2 && !Number.isInteger( parseInt( name ) ) )
                         return printHelpList( this.help.scan.raw );
                     else scanOpcode( name, ...opcodes );
                 }
             },
             def: {
-                $default: function( name, ...defs ) {
+                $default( name, ...defs ) {
                     if( arguments.length < 2 ) return printHelpList( this.help.scan.def );
                     else scanDef( name, ... defs );
                 }
             },
             verbose: {
-                $default: switchVerbose
+                $none: switchVerbose,
+                $default() { printHelpList( this.help.scan.verbose ); }
             },
-            $default: function( ...groupNameParts ) {
+            $default( ...groupNameParts ) {
                 if ( !groupNameParts || !groupNameParts.length ) switchScanning();
                 else switchGroup( groupNameParts );
             }
@@ -354,7 +364,8 @@ function utilityBox( mod ) {
                 }
             },
             list: {
-                $default: printPositions
+                $none: printPositions,
+                $default() { printHelpList( this.help.pos.list ); }
             },
             delete: {
                 $default( ...nameParts ) {
@@ -374,7 +385,8 @@ function utilityBox( mod ) {
                 }
             },
             reset: {
-                $default: positions.clear
+                $none: positions.clear,
+                $default() { printHelpList( this.help.pos.reset ); }
             },
             $default() {
                 if ( lastLocation && lastLocation.loc !== undefined ) {
@@ -428,7 +440,7 @@ function utilityBox( mod ) {
                         return `Adds a hook template that can be activated with "scan".`;
                     },
                     long() {
-                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook add</font> <font color="${COLOR_VALUE}">group hook-name version variables</font>\nWhere <font color="${COLOR_VALUE}">group</font> is the name of the group the hook should be assigned to.\n<font color="${COLOR_VALUE}">hook-name</font> is the name of the hook packet such as "S_CHAT".\n<font color="${COLOR_VALUE}">version</font> is the version of the packet. Should be an integer. Can also be "*" for the latest version or "raw" to create a raw hook.\n<font color="${COLOR_VALUE}">vars</font> [optional] are the variables of the packet that should be printed. Each variable name is seperated by a whitespace. If not specified, the whole data will be printed.`;
+                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook add</font> <font color="${COLOR_VALUE}">&lt;hook-name&gt; &lt;group&gt; &lt;version&gt; &lt;variables&gt;</font>\nWhere <font color="${COLOR_VALUE}">hook-name</font> is the name of the hook packet such as "S_CHAT".\n<font color="${COLOR_VALUE}">group</font> is the name of the group the hook should be assigned to.\n<font color="${COLOR_VALUE}">version</font> is the version of the packet. Should be an integer. Can also be "*" for the latest version or "raw" to create a raw hook.\n<font color="${COLOR_VALUE}">vars</font> [optional] are the variables of the packet that should be printed. Each variable name is seperated by a space. If not specified, the whole data will be printed.`;
                     }
                 },
                 remove: {
@@ -714,13 +726,11 @@ function utilityBox( mod ) {
                 printHelpList( this.help );
             }
         },
-        $default( value ) {
-            if ( value == undefined || value == "" ) printHelpList( this.help );
-            else {
-                msg.clear();
-                msg.text( `Unknown command. Type "${ROOT_COMMAND} help" for help.` );
-                chat.printMessage( msg.toHtml() );
-            }
+        $none() { printHelpList( this.help ); },
+        $default() {
+            msg.clear();
+            msg.text( `Unknown command. Type "${ROOT_COMMAND} help" for help.` );
+            chat.printMessage( msg.toHtml() );
         }
     };
 
@@ -826,7 +836,7 @@ function utilityBox( mod ) {
         });
         if ( !result.hook ) {
             delete analyser[opcode];
-            msg.disable( "Stop" );
+            msg.disable( "Finished" );
         } else {
             analyser[opcode] = undefined;
             analyser.default = opcode;
@@ -834,19 +844,24 @@ function utilityBox( mod ) {
         }
         msg.color().text( " scanning for " );
         msg.text( groupName );
-        if ( result.hook ) msg.text( "\nWaiting for data packet received..." );
+        if ( result.hook ) {
+            msg.text( "\nWaiting for data packet received..." );
+        } else {
+            msg.text( "\nUse " ).command( "util analyse start" ).color();
+            msg.text( " to start analysing the packet." );
+        }
         chat.printMessage( msg.toHtml() );
     }
 
     let scannedCodes;
 
-    function rawScan() {
+    function scanRaw() {
         scannedCodes = [];
         let result = hookManager.hook( "raw", "*", "raw", ( code, data, fromServer, fake ) => {
             if ( !scannedCodes.includes( code ) ) {
                 let name = OPCODE_NAME_MAP.get( code );
                 let version = LATEST_VERSION_MAP.get( name );
-                let scanMsg = `${code} -> ${name} ${version?`[v${version}]`:""}`
+                let scanMsg = `${code} -&gt; ${name} ${version && version != null?`[v ${version}]`:"[no version]"}`
                 chat.printMessage( scanMsg );
                 if( mod.settings.consoleOut ) mod.log( scanMsg );
                 if ( name != undefined ) {
@@ -863,20 +878,23 @@ function utilityBox( mod ) {
                         }
                     } catch ( err ) {
                         if( verbose )
-                            chat.printMessage( `data: ${ util.formatWithOptions( FORMAT_OPTIONS_SHORT, err.message ) }` );
+                            chat.printMessage( `${ util.formatWithOptions( FORMAT_OPTIONS_SHORT, err.message ) }\n`
+                        +`Data: ${ util.inspect( data ) }` );
                     }
                 }
                 scannedCodes.push( code );
             }
         });
-        let msg = "Scan raw packets ";
+        msg.clear();
+        msg.text( "Scan raw packets " );
         if ( !result.hook ) {
             hookManager.unhookGroup( "raw" );
-            msg += `<font color="${COLOR_DISABLE}">disabled</font>.`;
+            msg.disable( "disabled" );
         } else {
-            msg += `<font color="${COLOR_ENABLE}">enabled</font>.`;
+            msg.enable( "enabled" );
         }
-        chat.printMessage( msg );
+        msg.color().text( "." );
+        chat.printMessage( msg.toHtml( true ) );
     }
 
     function scanDef( scanName, ...defs ) {
@@ -892,18 +910,19 @@ function utilityBox( mod ) {
                 let code = NAME_OPCODE_MAP.get( def );
                 let version = LATEST_VERSION_MAP.get( def );
                 if( code ) hookManager.hook( groupName, def, version, ( e ) => {
-                    mod.command.message( `${def}${version?`[v${version}]`:""}(${code})` );
+                    mod.command.message( `${def} ${version?`[v ${version}]`:"[no version]"} (${code})` );
                     if( verbose ) mod.command.message( `Data: ${util.inspect( e, FORMAT_OPTIONS_EXTRA_SHORT )}` );
                 });
                 else noDefs.push( def );
             }
-            msg.enable( "Start" );
+            msg.enable( "Start" ).color();
+            msg.text( " scanning group " ).highlight( groupName ).color();
+            msg.text( " for definitions " ).value( util.inspect( defs ) );
         } else {
             hookManager.unhookGroup( groupName );
-            msg.disable( "Stop" );
+            msg.disable( "Stop" ).color();
+            msg.text( " scanning group " ).highlight( groupName ).color();
         }
-        msg.color().text( " scanning " ).highlight( scanName ).color();
-        msg.text( " for definitions " ).value( util.inspect( defs ) );
         chat.printMessage( msg.toHtml( true ) );
         if( noDefs.length > 0 ) {
             msg.text( "Could not scan following definitions: " );
@@ -929,11 +948,11 @@ function utilityBox( mod ) {
         let result = hookManager.hook( groupName, "*", "raw", ( code, data, fromServer, fake ) => {
             if ( opcodes.includes( code ) ) {
                 let left = fake && fromServer ? "P" : "S";
-                let arrow = fromServer ? "->" : "<-";
+                let arrow = fromServer ? "-&gt;" : "&lt;-";
                 let right = fake && !fromServer ? "P" : "C";
                 let opcodeName = OPCODE_NAME_MAP.get( code );
                 let version = LATEST_VERSION_MAP.get( opcodeName );
-                mod.command.message( `${left} ${arrow} ${right} ${code} (${opcodeName}${version?`[v${version}]`:""})` );
+                mod.command.message( `${left} ${arrow} ${right} ${code} (${opcodeName} ${version?`[v${version}]`:"[no version]"})` );
                 if ( !logger[scanName]) {
                     logger[scanName] = bunyan.createLogger({
                         name: "opcode",
@@ -962,10 +981,12 @@ function utilityBox( mod ) {
                     // did not work, so skip
                 }
                 if ( e != null ) {
+                    // TODO log unk variables with hex value
                     logger[scanName].debug({
                         def: opcodeName != undefined ? opcodeName : "undefined",
+                        opcode: code,
                         version: version,
-                        event: serializeData( e )
+                        event: serializeData( e ),
                     });
                 } else {
                     let header = data.slice( 0, 4 );
@@ -974,9 +995,9 @@ function utilityBox( mod ) {
                         def: opcodeName != undefined ? opcodeName : "undefined",
                         length: header.readUInt16LE(),
                         opcode: header.readUInt16LE( 2 ),
-                        data: body,
                         hex: addSpace( body.toString( "hex" ), 8 ),
-                        string: body.toString()
+                        string: body.toString(),
+                        data: body,
                     });
                 }
             }
@@ -984,18 +1005,19 @@ function utilityBox( mod ) {
         if ( !result.hook ) {
             delete logger[scanName];
             hookManager.unhookGroup( groupName );
-            msg.disable( "Stop " );
+            msg.disable( "Stop opcode group " );
+            msg.highlight( groupName );
         } else {
-            msg.enable( "Start " );
+            msg.enable( "Start opcode group " );
+            msg.highlight( groupName );
+            msg.color().text( " scanning for [" );
+            let i = opcodes.length - 1;
+            for ( let opcode of opcodes ) {
+                msg.value( opcode );
+                if ( i-- > 0 ) msg.color().text( "," );
+            }
+            msg.color().text( "]." );
         }
-        msg.highlight( groupName );
-        msg.color().text( " scanning for [" );
-        let i = opcodes.length - 1;
-        for ( let opcode of opcodes ) {
-            msg.value( opcode );
-            if ( i-- > 0 ) msg.color().text( "," );
-        }
-        msg.color().text( "]." );
         chat.printMessage( msg.toHtml() );
     }
 
@@ -1011,10 +1033,7 @@ function utilityBox( mod ) {
         if ( !groupNameParts || !groupNameParts.length ) return false;
         let groupName = "";
         if ( Array.isArray( groupNameParts ) ) {
-            for ( let i = 0; i < groupNameParts.length; i++ ) {
-                groupName += groupNameParts[i];
-                if ( i < groupNameParts.length - 1 ) groupName += " ";
-            }
+            groupName = groupNameParts.join( " " );
         } else {
             groupName = groupNameParts;
         }
