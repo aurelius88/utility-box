@@ -3,7 +3,7 @@ positions.json
 opcodes.json
 groups.json
 *config.json
-templates.json
+templates*.json
 
 out
 logs
