@@ -64,12 +64,28 @@ function utilityBox( mod ) {
         dynamicTemplates = TEMPLATES_DATA;
         for ( let template of TEMPLATES_DATA ) {
             try {
-                hookManager.addTemplate(
+                let f = template.def == "*" && template.raw == "raw" ?
+                    generateRawFunction( template.opcode )
+                    : generateFunction( template.def, template.version, template.vars );
+                let result = hookManager.addTemplate(
                     template.group,
                     template.def,
                     template.version ? template.version : "*",
-                    generateFunction( template.def, template.version, template.vars )
+                    f
                 );
+                if( !result ) result = hookManager.getHookTemplate(
+                    template.group,
+                    template.def,
+                    template.version ? template.version : "*",
+                    f
+                );
+                Object.assign( template, {
+                    group: result.group,
+                    id: result.id,
+                    def: result.args[0],
+                    version: result.args[1],
+                    vars: template.vars,
+                });
             } catch ( err ) {
                 mod.log( `Could not read template: ${err}` );
             }
@@ -83,7 +99,7 @@ function utilityBox( mod ) {
     //
     // OPCODE_FILE_NAME = `../../node_modules/tera-data/map_base/protocol.${version}.map`;
     OPCODE_NAME_MAP = mod.dispatch.protocolMap.code; // opcode -> name
-    NAME_OPCODE_MAP = mod.dispatch.protocolMap.name;
+    NAME_OPCODE_MAP = mod.dispatch.protocolMap.name; // name -> opcode
     LATEST_VERSION_MAP = mod.dispatch.latestDefVersion;
     GROUPED_OPCODE_MAP = FileHelper.groupOpcodes( OPCODE_NAME_MAP ); // group (S,C,DBS,...) -> opcode
 
@@ -117,8 +133,7 @@ function utilityBox( mod ) {
         let msg = new MessageBuilder();
         // e is used in eval
         return e => {
-            chat.printMessage( `<font color="${COLOR_HIGHLIGHT}">${ def } `
-                +`${ version ? `[v ${ version }]` : "[no version]" }</font> (${ NAME_OPCODE_MAP.get( def ) }):` )
+            chat.printMessage( makePacketMsgHeader( def, version, NAME_OPCODE_MAP.get( def ) ) )
             if( !vars || !vars.length ) msg.text( util.inspect( e, FORMAT_OPTIONS_EXTRA_SHORT ) );
             else {
                 let obj = {}
@@ -129,6 +144,13 @@ function utilityBox( mod ) {
                 msg.text( util.inspect( obj, FORMAT_OPTIONS_EXTRA_SHORT ) );
             }
             chat.printMessage( msg.toHtml( true ) );
+        };
+    }
+
+    function generateRawFunction( opcode ) {
+        // e is used in eval
+        return ( code, data, fromServer, fake ) => {
+            if( code === opcode ) printRawData( code, data, fromServer, fake );
         };
     }
 
@@ -156,8 +178,7 @@ function utilityBox( mod ) {
                 $default() { printHelpList( this.help.list.active ); }
             },
             templates: {
-                $none: printTemplates,
-                $default() { printHelpList( this.help.list.templates ); }
+                $default: printTemplates
             },
             $none: printGroups,
             $default() { printHelpList( this.help.list ); }
@@ -185,7 +206,7 @@ function utilityBox( mod ) {
                     if ( isNum ) version = parseInt( version );
                     let result = hookManager.addTemplate( group, def, version, generateFunction( def, version, vars ) );
 
-                    if ( !result.group ) {
+                    if ( !result ) {
                         chat.printMessage( "Could not add hook. Hook does already exist." );
                     } else {
                         msg.text( 'Successfully added hook to group "' ).value( group ).color();
@@ -194,39 +215,13 @@ function utilityBox( mod ) {
                         msg.text( ' and variables: ' ).value( util.inspect( vars ) ).color();
                         msg.text( '.' );
                         chat.printMessage( msg.toHtml( true ) );
-                        dynamicTemplates.push({ group: group, def: def, version: version, vars: vars });
+                        dynamicTemplates.push({ group: group, id: result.id, opcode: NAME_OPCODE_MAP.get( def ), def: def, version: version, vars: vars });
                     }
                 }
             },
             remove: {
-                id: function( group, id ) {
-                    if ( hookManager.removeTemplateAt( group, id ) ) {
-                        chat.printMessage(
-                            `Template id <font color="${COLOR_VALUE}">${id}</font> in <font color="${COLOR_VALUE}">${group}</font> successfully removed.`
-                        );
-                    } else {
-                        chat.printMessage(
-                            `Could not remove template id <font color="${COLOR_VALUE}">${id}</font> in <font color="${COLOR_VALUE}">${group}</font>. Check if group and id are correct.`
-                        );
-                    }
-                },
-                $default: function( name, group ) {
-                    if ( !name ) return printHelpList( this.help.hook.remove );
-                    if ( hookManager.removeTemplateByName( name, group ) ) {
-                        chat.printMessage(
-                            `Template named <font color="${COLOR_VALUE}">${name}</font> ${
-                                group ? `in <font color="${COLOR_VALUE}">${group}</font> ` : ""
-                            }successfully removed.`
-                        );
-                    } else {
-                        chat.printMessage(
-                            `Could not find template named <font color="${COLOR_VALUE}">${name}</font> ${
-                                group ? `in <font color="${COLOR_VALUE}">${group}</font> ` : ""
-                            }. Check if <font color="${COLOR_COMMAND}">name</font> (first argument)`
-                            +` and <font color="${COLOR_COMMAND}">group</font> (second argument) are correct.`
-                        );
-                    }
-                }
+                id: removeTemplateById,
+                $default: removeTemplateByName
             },
             $default() {
                 printHelpList( this.help.hook );
@@ -303,6 +298,7 @@ function utilityBox( mod ) {
                     msg.text( "is the opcode number of the packet that should be analysed." );
                     chat.printMessage( msg.toHtml() );
                 } else {
+                    if ( !opcode ) return listAnalysers();
                     if ( !checkOpcode( opcode ) ) return;
                     msg.clear();
                     analyser.default = parseInt( opcode );
@@ -754,6 +750,91 @@ function utilityBox( mod ) {
 
     command.add( ROOT_COMMAND, commands, commands );
 
+    function listAnalysers() {
+        msg.clear();
+        let opcodes = Object.keys( analyser );
+        let i = 0
+        for( ; i < opcodes.length - 1; i++ ) {
+            msg.highlight( opcodes[i]).color().text( ', ' );
+        }
+        if( i < opcodes.length ) msg.highlight( opcodes[i++]);
+        chat.printMessage( msg.toHtml( true ) );
+    }
+
+    function removeTemplateByName( group, name ) {
+        if ( !name ) return printHelpList( this.help.hook.remove );
+        msg.clear();
+        let deleteIndex = dynamicTemplates.findIndex( t => t.group === group && t.def === name );
+        let deleteCandidate = dynamicTemplates[deleteIndex];
+        if ( !deleteCandidate ) {
+            msg.text( 'Could not find template with definition name ' ).value( name ).color();
+            msg.text( '. Avialable defs: ' );
+            for( let t of dynamicTemplates ) msg.value( `${t.def} ` );
+        } else {
+            let isRemoved = hookManager.removeTemplateByName( group, name );
+            if ( isRemoved ) {
+                dynamicTemplates.splice( deleteIndex, 1 ); // remove from dynamicTemplates
+                msg.text( 'Removed template ' );
+            } else {
+                msg.text( 'Could not remove template ' );
+            }
+            msg.value( deleteCandidate.def ).color();
+            msg.text( '(v.' ).value( deleteCandidate.version ).color();
+            msg.text( ') with id ' ).value( deleteCandidate.id ).color();
+            msg.text( ' from group ' ).value( deleteCandidate.group ).color();
+            if ( isRemoved ) {
+                msg.text( ' successfully.' );
+            } else {
+                msg.text( '. Check if ' ).highlight( 'group' ).color();
+                msg.text( ' and ' ).highlight( 'id' ).color().text( ' are correct.' );
+            }
+        }
+        chat.printMessage( msg.toHtml( true ) );
+    }
+
+
+    function removeTemplateById( group, idString ) {
+        if ( !group ) return printHelpList( this.help.hook.remove.id );
+        msg.clear();
+        let id = idString ? parseInt( idString ) : parseInt( group );
+        if( isNaN( id ) ) {
+            msg.highlight( "id" ).color();
+            msg.text( ' should be a number, but was ' ).value( id );
+            chat.printMessage( msg.toHtml( true ) );
+            return;
+        }
+        let byId = idString ? t => t.group === group && t.id === id : t => t.id === id;
+        let deleteIndex = dynamicTemplates.findIndex( byId );
+        let deleteCandidate = dynamicTemplates[deleteIndex];
+        if ( !deleteCandidate ) {
+            msg.text( 'Could not find template with id ' ).value( id ).color();
+            if ( idString ) msg.text( ' in group ' ).value( group );
+            msg.text( '. Avialable ids: ' );
+            for( let t of dynamicTemplates ) msg.value( `${t.id} ` );
+        } else {
+            let isRemoved = idString ?
+                hookManager.removeTemplateById( group, id )
+                : hookManager.removeTemplateById( id );
+            if ( isRemoved ) {
+                dynamicTemplates.splice( deleteIndex, 1 ); // remove from dynamicTemplates
+                msg.text( 'Removed template ' );
+            } else {
+                msg.text( 'Could not remove template ' );
+            }
+            msg.value( deleteCandidate.def ).color();
+            msg.text( '(v.' ).value( deleteCandidate.version ).color();
+            msg.text( ') with id ' ).value( deleteCandidate.id ).color();
+            msg.text( ' from group ' ).value( deleteCandidate.group ).color();
+            if ( isRemoved ) {
+                msg.text( ' successfully.' );
+            } else {
+                msg.text( '. Check if ' ).highlight( 'group' ).color();
+                msg.text( ' and ' ).highlight( 'id' ).color().text( ' are correct.' );
+            }
+        }
+        chat.printMessage( msg.toHtml( true ) );
+    }
+
     function listTypes() {
         msg.clear();
         if ( analyser[analyser.default].isFinished() ) {
@@ -826,31 +907,70 @@ function utilityBox( mod ) {
         let result = hookManager.hook( groupName, "*", "raw", ( code, data, fromServer, fake ) => {
             if ( parseInt( opcode ) == code && !analyser[code]) {
                 analyser[code] = new PacketAnalyser( data, code );
-                chat.printMessage( "Data recieved. Ready for analysing!" );
                 let msg = new MessageBuilder();
-                msg.disable( "Stop " );
-                msg.color().text( groupName );
-                chat.printMessage( msg.toHtml() );
+                msg.disable( "Received" ).color();
+                msg.text( ' packet ' ).value( code );
+                msg.text( "\nUse " ).command( "util analyse start" ).color();
+                msg.text( " to start analysing the packet." );
+                chat.printMessage( msg.toHtml( true ) );
                 hookManager.unhookGroup( groupName );
             }
         });
         if ( !result.hook ) {
             delete analyser[opcode];
-            msg.disable( "Finished" );
+            msg.disable( "Stop" );
         } else {
             analyser[opcode] = undefined;
             analyser.default = opcode;
             msg.enable( "Start" );
         }
         msg.color().text( " scanning for " );
-        msg.text( groupName );
+        msg.value( groupName );
         if ( result.hook ) {
-            msg.text( "\nWaiting for data packet received..." );
-        } else {
-            msg.text( "\nUse " ).command( "util analyse start" ).color();
-            msg.text( " to start analysing the packet." );
+            msg.text( "\nWaiting for data packet " ).value( opcode );
+            msg.text( "..." );
         }
         chat.printMessage( msg.toHtml() );
+    }
+
+    function makePacketMsgHeader( name, version, code, fromServer, fake ) {
+        let msg = new MessageBuilder();
+        if( arguments.length == 5 ) {
+            if ( fake && fromServer ) msg.highlight( "fS" ); else msg.value( "S" );
+            if ( fromServer ) msg.enable( "->" ); else msg.disable ( "<-" );
+            if ( fake && !fromServer ) msg.highlight( "fC" ); else msg.value( "C" );
+            msg.color().text( ": " );
+        }
+        msg.text( "#" ).value( code ).highlight( ` ${name}` ).color();
+        msg.text( `${version && version != null?`[v.${version}]`:"[no definition]"}` );
+        return msg.toHtml( true );
+    }
+
+    function printRawData( code, data, fromServer, fake ) {
+        let name = OPCODE_NAME_MAP.get( code );
+        let version = LATEST_VERSION_MAP.get( name );
+        let scanMsg = makePacketMsgHeader( name, version, code, fromServer, fake )
+        chat.printMessage( scanMsg );
+        if( mod.settings.consoleOut ) mod.log( scanMsg );
+        if ( name != undefined ) {
+            try {
+                let eventData = mod.dispatch.protocol.parse(
+                    mod.dispatch.protocol.resolveIdentifier( name , version ? version : "*" ),
+                    data
+                );
+                if( verbose ) {
+                    let dataMsg = `Data: ${ util.inspect( eventData, FORMAT_OPTIONS_EXTRA_SHORT ) }`;
+                    chat.printMessage( dataMsg );
+                    if( mod.settings.consoleOut )
+                        mod.log( dataMsg );
+                }
+            } catch ( err ) {
+                let errorMsg = `${ util.formatWithOptions( FORMAT_OPTIONS_SHORT, err.message ) }\n`
+                                +`Data: ${ util.inspect( data ) }`;
+                if( verbose ) chat.printMessage( errorMsg );
+                if( mod.settings.consoleOut ) mod.log( errorMsg );
+            }
+        }
     }
 
     let scannedCodes;
@@ -859,29 +979,7 @@ function utilityBox( mod ) {
         scannedCodes = [];
         let result = hookManager.hook( "raw", "*", "raw", ( code, data, fromServer, fake ) => {
             if ( !scannedCodes.includes( code ) ) {
-                let name = OPCODE_NAME_MAP.get( code );
-                let version = LATEST_VERSION_MAP.get( name );
-                let scanMsg = `${code} -&gt; ${name} ${version && version != null?`[v ${version}]`:"[no version]"}`
-                chat.printMessage( scanMsg );
-                if( mod.settings.consoleOut ) mod.log( scanMsg );
-                if ( name != undefined ) {
-                    try {
-                        let eventData = mod.dispatch.protocol.parse(
-                            mod.dispatch.protocol.resolveIdentifier( name , version ? version : "*" ),
-                            data
-                        );
-                        if( verbose ) {
-                            let dataMsg = `data: ${ util.inspect( eventData, FORMAT_OPTIONS_EXTRA_SHORT ) }`;
-                            chat.printMessage( dataMsg );
-                            if( mod.settings.consoleOut )
-                                mod.log( dataMsg );
-                        }
-                    } catch ( err ) {
-                        if( verbose )
-                            chat.printMessage( `${ util.formatWithOptions( FORMAT_OPTIONS_SHORT, err.message ) }\n`
-                        +`Data: ${ util.inspect( data ) }` );
-                    }
-                }
+                printRawData( code, data, fromServer, fake );
                 scannedCodes.push( code );
             }
         });
@@ -898,9 +996,9 @@ function utilityBox( mod ) {
     }
 
     function scanDef( scanName, ...defs ) {
-        if( scanName == undefined ) throw new Error(`Missing name (first) argument for this scan.`);
+        if( scanName == undefined ) throw new Error( `Missing name (first) argument for this scan.` );
         if( defs == undefined || defs.length == 0 || defs[0] == undefined ) {
-            throw new Error(`Missing def names for this scan. E.g. "S_CHAT"`);
+            throw new Error( `Missing def names for this scan. E.g. "S_CHAT"` );
         }
         msg.clear();
         let groupName = "def-scan-" + scanName;
@@ -910,7 +1008,7 @@ function utilityBox( mod ) {
                 let code = NAME_OPCODE_MAP.get( def );
                 let version = LATEST_VERSION_MAP.get( def );
                 if( code ) hookManager.hook( groupName, def, version, ( e ) => {
-                    mod.command.message( `${def} ${version?`[v ${version}]`:"[no version]"} (${code})` );
+                    mod.command.message( makePacketMsgHeader( def, version, code ) );
                     if( verbose ) mod.command.message( `Data: ${util.inspect( e, FORMAT_OPTIONS_EXTRA_SHORT )}` );
                 });
                 else noDefs.push( def );
@@ -947,12 +1045,10 @@ function utilityBox( mod ) {
         let groupName = "opcode-scan-" + scanName;
         let result = hookManager.hook( groupName, "*", "raw", ( code, data, fromServer, fake ) => {
             if ( opcodes.includes( code ) ) {
-                let left = fake && fromServer ? "P" : "S";
-                let arrow = fromServer ? "-&gt;" : "&lt;-";
-                let right = fake && !fromServer ? "P" : "C";
+
                 let opcodeName = OPCODE_NAME_MAP.get( code );
                 let version = LATEST_VERSION_MAP.get( opcodeName );
-                mod.command.message( `${left} ${arrow} ${right} ${code} (${opcodeName} ${version?`[v${version}]`:"[no version]"})` );
+                mod.command.message( makePacketMsgHeader( opcodeName, version, code, fromServer, fake ) );
                 if ( !logger[scanName]) {
                     logger[scanName] = bunyan.createLogger({
                         name: "opcode",
@@ -975,7 +1071,7 @@ function utilityBox( mod ) {
                 // }
                 let e = null;
                 try {
-                    e = mod.dispatch.protocol.parse( mod.dispatch.protocol.resolveIdentifier( opcodeName , version ? version : "*" ), data );
+                    e = mod.dispatch.protocol.parse( mod.dispatch.protocol.resolveIdentifier( opcodeName, version ? version : "*" ), data );
                     if( verbose ) mod.command.message( `Data: ${ util.inspect( e, FORMAT_OPTIONS_EXTRA_SHORT ) }` );
                 } catch ( _ ) {
                     // did not work, so skip
@@ -1039,23 +1135,62 @@ function utilityBox( mod ) {
         }
         if ( groupName == "" ) {
             chat.printMessage( "Please enter a group name." );
-            chat.printMessage( this.scan.help.long() );
+            printHelpList( this.help.scan );
             return false;
         }
-        if ( !hookManager.hasGroup( groupName ) ) {
+        msg.clear();
+        if ( hookManager.hasGroup( groupName ) ) {
+            let isActive = hookManager.hasActiveGroup( groupName );
+            if ( isActive ) hookManager.unhookGroup( groupName );
+            else {
+                let result = hookManager.hookGroup( groupName );
+                for ( let hookObj of result ) {
+                    if( hookObj && hookObj.hook ) continue;
+                    // broken hook detected
+                    let deleteIndex = dynamicTemplates.findIndex( t => t.id === hookObj.id );
+                    let def = hookObj.args[0];
+                    let version = hookObj.args[1];
+                    let opcode = NAME_OPCODE_MAP.get( def );
+                    if( !opcode ) {
+                        msg.text( 'Abbort removing hook ' ).value( def ).color();
+                        msg.text( `"[${ version ? version : "no definition" }], `
+                        +`because of missing mapping opcode "` );
+                        msg.value( opcode ).color().text( '" -> "' );
+                        msg.value( def ).text( '" definition. Please fix ' );
+                        msg.text( `protocol.${ mod.protocolVersion }.map` );
+                        continue;
+                    }
+                    if( hookManager.removeTemplate( hookObj ) ) {
+                        dynamicTemplates.splice( deleteIndex, 1 ); // remove from dynamicTemplates
+                        let res = hookManager.hook( hookObj.group, "*", "raw", ( code, data, fromServer, fake ) => {
+                            if( code === opcode )
+                                printRawData( code, data, fromServer, fake );
+                        });
+                        if( res.hook ) {
+                            msg.text( 'Replaced hook "' ).value( def ).color();
+                            msg.text( `"[${ version ? version : "no definition" }] with raw hook, `
+                                +`because of ${ LATEST_VERSION_MAP.get( def ) ?
+                                    "missing definition file" : "missing/wrong version" }.` );
+                            dynamicTemplates.push(
+                                { group: groupName, id: res.id, opcode , def: def, version: "raw", vars: [] });
+                        } else {
+                            msg.text( 'Could not fix hook ' ).value( def ).color();
+                            msg.text( `"[${ version ? version : "no definition" }], `
+                                +`because of raw hook failed.` );
+                        }
+                    }
+                }
+            }
+            chat.printMessage(
+                groupName
+                + ( !isActive ? ` <font color="${COLOR_ENABLE}">enabled</font>.`
+                    : ` <font color="${COLOR_DISABLE}">disabled</font>.` )
+            );
+            return true;
+        } else {
             chat.printMessage( "There is no group named " + groupName );
             return false;
         }
-        let isActive = hookManager.hasActiveGroup( groupName );
-        if ( isActive ) hookManager.unhookGroup( groupName );
-        else hookManager.hookGroup( groupName );
-        chat.printMessage(
-            groupName
-                + ( !isActive ?
-                    ` <font color="${COLOR_ENABLE}">enabled</font>.`
-                    : ` <font color="${COLOR_DISABLE}">disabled</font>.` )
-        );
-        return true;
     }
 
     function switchScanning() {
@@ -1100,15 +1235,29 @@ function utilityBox( mod ) {
     }
 
     function printTemplates( group ) {
+        msg.clear();
         if ( group ) {
             if ( !hookManager.hasGroup( group ) ) {
-                chat.printMessage( `There is no such group <font color="${COLOR_VALUE}">${group}</font>.` );
+                msg.text( 'There is no such group "' ).value( group ).color();
+                msg.text( '.' );
+                return chat.printMessage( msg.toHtml( true ) );
             }
-            chat.printMessage( `Templates of group <font color="${COLOR_HIGHLIGHT}">${group}</font>:` );
+            msg.text( `Templates of group ` ).value( group ).color().text( ":" );
+            let maxPrintLength = BUFFER_LENGTH_SHORT;
             let groupTemps = hookManager.getHookTemplates().get( group );
-            for ( let i = 0; i < groupTemps.length; i++ ) {
-                chat.printMessage( `${i}: ${JSON.stringify( groupTemps[i][0])}` );
+            let tempsLength = groupTemps.length;
+            for ( let i = 0; i < tempsLength && i < maxPrintLength; i++ ) {
+                let template = groupTemps[i];
+                let version = template.args[1];
+                msg.value( `\n${ i }` ).color().text( ` (id=${ template.id }): ` );
+                msg.highlight( JSON.stringify( template.args[0]) ).color();
+                msg.text( `[v.${ version ? version : "[no definition]" }]` );
             }
+            if ( tempsLength > maxPrintLength ) {
+                let leftCount = tempsLength - maxPrintLength;
+                msg.text( `\n... ${ leftCount } more template${ leftCount > 1 ? "s" : "" }` );
+            }
+            chat.printMessage( msg.text( '\n' ).toHtml( true ) );
         } else {
             for ( let g of hookManager.getHookTemplates().keys() ) {
                 printTemplates( g );
@@ -1139,10 +1288,11 @@ function utilityBox( mod ) {
     }
 
     function initGroupedOpcodeHooks() {
-        for ( let [group, opcode] of GROUPED_OPCODE_MAP ) {
-            hookManager.addTemplate( group, OPCODE_NAME_MAP.get( opcode ), "*", e => {
-                chat.printMessage( JSON.stringify( e ) );
-            });
+        for ( let [group, opcodes] of GROUPED_OPCODE_MAP ) {
+            for( let opcode of opcodes )
+                hookManager.addTemplate( group, OPCODE_NAME_MAP.get( opcode ), "*", e => {
+                    chat.printMessage( JSON.stringify( e ) );
+                });
         }
     }
 
@@ -1217,7 +1367,7 @@ function utilityBox( mod ) {
             chat.printMessage( `${typeName} (${ChatHelper.msToUTCTimeString( event.time )}) => ${event.loc}` );
         });
 
-        hookManager.addTemplate( "positioning", "C_PLAYER_LOCATION", 5, event => ( lastLocation = event ) );
+        hookManager.addTemplate( "positioning", "C_PLAYER_LOCATION", 5, event => { lastLocation = event; });
 
         /*
         uint64 gameId
@@ -1326,46 +1476,6 @@ function utilityBox( mod ) {
         hookManager.addTemplate( "channel", "C_CANCEL_SELECT_CHANNEL", 1, e => {
             chat.printMessage( `C_CANCEL_SELECT_CHANNEL` );
         });
-
-        // /*
-        // # elite bar?
-        // count inventory
-        // offset inventory
-        //
-        // int32 size
-        //
-        // array inventory
-        // - int32 slot
-        // - int32 type # 1 = item, 2 = skill
-        // - int32 skill
-        // - int32 item
-        // - int32 amount
-        // - int32 cooldown
-        // */
-        // hookManager.addTemplate( "elite-bar", "S_PCBANGINVENTORY_DATALIST", 1, event => {
-        //     let s = "Elite bar:\n[";
-        //     for ( let item of event.inventory ) {
-        //         s += item.slot;
-        //         switch ( item.type ) {
-        //             case 1:
-        //                 s += `# item: ${item.item}`;
-        //                 break;
-        //             case 3:
-        //                 s += `# skill: ${item.skill}`;
-        //                 break;
-        //             default:
-        //                 s += `# unknown (${item.type})`;
-        //         }
-        //         s += ` (count: ${item.amount}, cd: ${item.cooldown})\n`;
-        //     }
-        //     s += "]";
-        //     chat.printMessage( s );
-        // });
-        //
-        // /* int32 slot */
-        // hookManager.addTemplate( "elite-bar", "C_PCBANGINVENTORY_USE_SLOT", 1, event => {
-        //     chat.printMessage( "Use elite-bar slot " + event.slot );
-        // });
 
         /*
         int32 set
@@ -1859,9 +1969,11 @@ class UtilityBox {
             positions.forEach( ( v, k ) => posData.push([k, v]) );
             FileHelper.saveJson( posData, POSITIONS_PATH );
         }
-        if( dynamicTemplates != undefined ) {
+
+        if( dynamicTemplates != undefined && dynamicTemplates.length ) {
             FileHelper.saveJson( dynamicTemplates, TEMPLATES_PATH );
         }
+
         stopScanning();
     }
 }
