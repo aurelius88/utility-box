@@ -12,6 +12,6 @@
     "servers": ["https://raw.githubusercontent.com/aurelius88/utility-box/dev/"],
     "supportUrl": "https://github.com/aurelius88/utility-box/issues",
     "dependencies": {
-        "util-lib": "https://raw.githubusercontent.com/aurelius88/util-lib/master/"
+        "util-lib": "https://raw.githubusercontent.com/aurelius88/util-lib/v1.1.6/"
     }
 }
