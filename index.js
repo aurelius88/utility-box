@@ -130,7 +130,6 @@ function utilityBox( mod ) {
     let illegalPosCommands = [];
 
     function filterNonVariables( vars ) {
-        mod.log( `Filter ${util.inspect( vars )}` )
         let nonVars = vars.map( v => {
             if( !v ) return "";
             let i = v.search( /\W/ );
