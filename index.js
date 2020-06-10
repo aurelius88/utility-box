@@ -129,10 +129,22 @@ function utilityBox( mod ) {
 
     let illegalPosCommands = [];
 
+    function filterNonVariables( vars ) {
+        mod.log( `Filter ${util.inspect( vars )}` )
+        let nonVars = vars.map( v => {
+            if( !v ) return "";
+            let i = v.search( /\W/ );
+            return v.slice( 0, i > 0 ? i : undefined );
+        });
+        return nonVars.filter( v => v !== "" );
+    }
+
     function generateFunction( def, version, vars ) {
-        let msg = new MessageBuilder();
+        // filter non-variables and non-variable additions
+        vars = filterNonVariables( vars );
         // e is used in eval
         return e => {
+            let msg = new MessageBuilder();
             chat.printMessage( makePacketMsgHeader( def, version, NAME_OPCODE_MAP.get( def ) ) )
             if( !vars || !vars.length ) msg.text( util.inspect( e, FORMAT_OPTIONS_EXTRA_SHORT ) );
             else {
@@ -204,6 +216,7 @@ function utilityBox( mod ) {
                         return chat.printMessage( msg.toHtml( true ) );
                     }
                     if ( isNum ) version = parseInt( version );
+                    vars = filterNonVariables( vars );
                     let result = hookManager.addTemplate( group, def, version, generateFunction( def, version, vars ) );
 
                     if ( !result ) {
