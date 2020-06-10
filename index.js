@@ -196,7 +196,7 @@ function utilityBox( mod ) {
         },
         hook: {
             add: {
-                $default: function( def, group, version, ...vars ) {
+                $default: function( group, def, version, ...vars ) {
                     if ( arguments.length < 3 ) return printHelpList( this.help.hook.add );
                     msg.clear();
                     let isNum = isNumber( version );
@@ -448,7 +448,24 @@ function utilityBox( mod ) {
                         return `Adds a hook template that can be activated with "scan".`;
                     },
                     long() {
-                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook add</font> <font color="${COLOR_VALUE}">&lt;hook-name&gt; &lt;group&gt; &lt;version&gt; &lt;variables&gt;</font>\nWhere <font color="${COLOR_VALUE}">hook-name</font> is the name of the hook packet such as "S_CHAT".\n<font color="${COLOR_VALUE}">group</font> is the name of the group the hook should be assigned to.\n<font color="${COLOR_VALUE}">version</font> is the version of the packet. Should be an integer. Can also be "*" for the latest version or "raw" to create a raw hook.\n<font color="${COLOR_VALUE}">vars</font> [optional] are the variables of the packet that should be printed. Each variable name is seperated by a space. If not specified, the whole data will be printed.`;
+                        msg.clear();
+                        msg.text( "USAGE: " ).command( `${ROOT_COMMAND} hook add` );
+                        msg.value( " <group> <hook-name> <version> [<variables>]\n" ).color();
+                        msg.text( "Where...\n" );
+                        msg.value( "<group>" ).color();
+                        msg.text( " is the name of the group the hook should be assigned to.\n" );
+                        msg.value( "<hook-name>" ).color();
+                        msg.text( ' is the name of the hook packet such as "S_CHAT".\n' );
+                        msg.value( "<version>" ).color();
+                        msg.text(
+                            ' is the version of the packet. Should be an integer. Can also be "*" for the latest version or "raw" to create a raw hook.\n'
+                        );
+                        msg.value( "<variables>" ).color();
+                        msg.text(
+                            " (optional) are the variables of the packet that should be printed. Each variable name is seperated by a space. If not specified, the whole data will be printed."
+                        );
+                        return msg.toHtml( true );
+
                     }
                 },
                 remove: {
@@ -459,7 +476,15 @@ function utilityBox( mod ) {
                         return `Removes all hook templates with the specified hook name.`;
                     },
                     long() {
-                        return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook remove</font> <font color="${COLOR_VALUE}">hook-name group</font>\nWhere...\n<font color="${COLOR_VALUE}">group</font> is the name of the group that contains the hook. (optional)\n<font color="${COLOR_VALUE}">hook-name</font> is the name of the hook packet such as "S_CHAT".`;
+                        msg.clear();
+                        msg.text( "USAGE: " ).command( `${ROOT_COMMAND} hook remove` );
+                        msg.value( "[<group>] <hook-name>\n" ).color();
+                        msg.text( "Where...\n" );
+                        msg.value( "<group>" ).color();
+                        msg.text( " is the name of the group that contains the hook. (optional)\n" );
+                        msg.value( "<hook-name>" ).color();
+                        msg.text( ' is the name of the hook packet such as "S_CHAT".' );
+                        return msg.toHtml( true );
                     },
                     id: {
                         $default() {
@@ -469,7 +494,18 @@ function utilityBox( mod ) {
                             return `Removes a hook template by using the id.`;
                         },
                         long() {
-                            return `USAGE: <font color="${COLOR_COMMAND}">${ROOT_COMMAND} hook remove id</font> <font color="${COLOR_VALUE}">group id</font>\nWhere...\n<font color="${COLOR_VALUE}">group</font> is the name of the group the hook should be assigned to.\n<font color="${COLOR_VALUE}">id</font> is the id of the hook inside the group (retrieved by <font color="${COLOR_COMMAND}">${ROOT_COMMAND} list templates</font> with <font color="${COLOR_VALUE}">group</font> as argument).`;
+                            msg.clear();
+                            msg.text( "USAGE: " ).command( `${ROOT_COMMAND} hook remove id` );
+                            msg.value( "[<group>] <id>\n" ).color();
+                            msg.text( "Where...\n" );
+                            msg.value( "<group>" ).color();
+                            msg.text( " (optional) is the name of the group that contains the hook.\n" );
+                            msg.value( "<id>" ).color();
+                            msg.text( " is the id of the hook inside the group (retrieved by " );
+                            msg.command( "list templates " ).value( "[<group>]" );
+                            msg.color().text( ")" );
+                            return msg.toHtml( true );
+
                         },
                     }
                 },
