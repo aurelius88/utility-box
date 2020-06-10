@@ -64,7 +64,7 @@ function utilityBox( mod ) {
         dynamicTemplates = TEMPLATES_DATA;
         for ( let template of TEMPLATES_DATA ) {
             try {
-                let f = template.def == "*" && template.raw == "raw" ?
+                let f = template.version == "raw" ?
                     generateRawFunction( template.opcode )
                     : generateFunction( template.def, template.version, template.vars );
                 let result = hookManager.addTemplate(
@@ -160,7 +160,6 @@ function utilityBox( mod ) {
     }
 
     function generateRawFunction( opcode ) {
-        // e is used in eval
         return ( code, data, fromServer, fake ) => {
             if( code === opcode ) printRawData( code, data, fromServer, fake );
         };
@@ -1157,42 +1156,7 @@ function utilityBox( mod ) {
             if ( isActive ) hookManager.unhookGroup( groupName );
             else {
                 let result = hookManager.hookGroup( groupName );
-                for ( let hookObj of result ) {
-                    if( hookObj && hookObj.hook ) continue;
-                    // broken hook detected
-                    let deleteIndex = dynamicTemplates.findIndex( t => t.id === hookObj.id );
-                    let def = hookObj.args[0];
-                    let version = hookObj.args[1];
-                    let opcode = NAME_OPCODE_MAP.get( def );
-                    if( !opcode ) {
-                        msg.text( 'Abbort removing hook ' ).value( def ).color();
-                        msg.text( `"[${ version ? version : "no definition" }], `
-                        +`because of missing mapping opcode "` );
-                        msg.value( opcode ).color().text( '" -> "' );
-                        msg.value( def ).text( '" definition. Please fix ' );
-                        msg.text( `protocol.${ mod.protocolVersion }.map` );
-                        continue;
-                    }
-                    if( hookManager.removeTemplate( hookObj ) ) {
-                        dynamicTemplates.splice( deleteIndex, 1 ); // remove from dynamicTemplates
-                        let res = hookManager.hook( hookObj.group, "*", "raw", ( code, data, fromServer, fake ) => {
-                            if( code === opcode )
-                                printRawData( code, data, fromServer, fake );
-                        });
-                        if( res.hook ) {
-                            msg.text( 'Replaced hook "' ).value( def ).color();
-                            msg.text( `"[${ version ? version : "no definition" }] with raw hook, `
-                                +`because of ${ LATEST_VERSION_MAP.get( def ) ?
-                                    "missing definition file" : "missing/wrong version" }.` );
-                            dynamicTemplates.push(
-                                { group: groupName, id: res.id, opcode , def: def, version: "raw", vars: [] });
-                        } else {
-                            msg.text( 'Could not fix hook ' ).value( def ).color();
-                            msg.text( `"[${ version ? version : "no definition" }], `
-                                +`because of raw hook failed.` );
-                        }
-                    }
-                }
+                fixNotHookedTemplates( result );
             }
             chat.printMessage(
                 groupName
@@ -1203,6 +1167,47 @@ function utilityBox( mod ) {
         } else {
             chat.printMessage( "There is no group named " + groupName );
             return false;
+        }
+    }
+
+    function fixNotHookedTemplates( hookObjects ) {
+        for ( let hookObj of hookObjects ) {
+            if( hookObj && hookObj.hook ) continue;
+            // broken hook detected
+            let deleteIndex = dynamicTemplates.findIndex( t => t.id === hookObj.id );
+            let def = hookObj.args[0];
+            let version = hookObj.args[1];
+            let opcode = NAME_OPCODE_MAP.get( def );
+            if( !opcode ) {
+                msg.text( 'Abbort removing hook ' ).value( def ).color();
+                msg.text( `"[${ version ? version : "no definition" }], `
+                +`because of missing mapping opcode "` );
+                msg.value( opcode ).color().text( '" -> "' );
+                msg.value( def ).text( '" definition. Please fix ' );
+                msg.text( `protocol.${ mod.protocolVersion }.map` );
+                continue;
+            }
+            if( hookManager.removeTemplate( hookObj ) ) {
+                dynamicTemplates.splice( deleteIndex, 1 ); // remove from dynamicTemplates
+                let res = hookManager.hook( hookObj.group, "*", "raw", generateRawFunction( opcode ) );
+                if( res.hook ) {
+                    msg.text( 'Replaced hook "' ).value( def ).color();
+                    msg.text( `"[${ version ? version : "no definition" }] with raw hook, `
+                        +`because of ${ LATEST_VERSION_MAP.get( def ) ?
+                            "missing definition file" : "missing/wrong version" }.` );
+                    dynamicTemplates.push(
+                        { group: res.group, id: res.id, opcode , def: def, version: "raw", vars: [] });
+                } else {
+                    msg.text( 'Could not fix hook ' ).value( def ).color();
+                    msg.text( `"[${ version ? version : "no definition" }], `
+                        +`because of raw hook failed.` );
+                }
+            } else {
+                msg.text( 'Could not fix hook ' ).value( def ).color();
+                msg.text( `"[${ version ? version : "no definition" }], `
+                    +`because of removing template failed.` );
+            }
+            chat.printMessage( msg.toHtml( true ) );
         }
     }
 
