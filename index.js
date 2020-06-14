@@ -24,7 +24,7 @@ const ANALYSED_LENGTH_SHORT = 4;
 const BUFFER_LENGTH_EXTRA_SHORT = 1;
 const BUFFER_LENGTH_SHORT = 16;
 const BUFFER_LENGTH_LONG = 512;
-const FORMAT_OPTIONS_EXTRA_SHORT = { colors: false, breakLength: 80, maxArrayLength: BUFFER_LENGTH_EXTRA_SHORT, compact: 4, depth: 2 }
+const FORMAT_OPTIONS_EXTRA_SHORT = { colors: false, breakLength: 80, maxArrayLength: BUFFER_LENGTH_EXTRA_SHORT, compact: 4, depth: 2 };
 const FORMAT_OPTIONS_SHORT = { colors: false, breakLength: 80, maxArrayLength: BUFFER_LENGTH_SHORT, compact: 4 };
 const FORMAT_OPTIONS_COMMON = { colors: false, breakLength: 120 };
 const FORMAT_OPTIONS_LONG = { colors: false, breakLength: 120, maxArrayLength: BUFFER_LENGTH_LONG };
@@ -50,6 +50,7 @@ function utilityBox( mod ) {
 
     let gameId = null,
         lastLocation = null,
+        zone = null,
         verbose = mod.settings.scanVerbose;
     let analyser = {};
     // chat.printMessage( "Version: " + version, true );
@@ -143,19 +144,34 @@ function utilityBox( mod ) {
         vars = filterNonVariables( vars );
         // e is used in eval
         return e => {
-            let msg = new MessageBuilder();
-            chat.printMessage( makePacketMsgHeader( def, version, NAME_OPCODE_MAP.get( def ) ) )
-            if( !vars || !vars.length ) msg.text( util.inspect( e, FORMAT_OPTIONS_EXTRA_SHORT ) );
+            chat.printMessage( makePacketMsgHeader( def, version, NAME_OPCODE_MAP.get( def ) ).toHtml( true ) );
+            let objString;
+            if( !vars || !vars.length ) objString = util.inspect( e, FORMAT_OPTIONS_EXTRA_SHORT );
             else {
-                let obj = {}
+                let obj = {};
                 for ( let v of vars ) {
                     let value = eval( "e." + v );
                     obj[v] = value;
                 }
-                msg.text( util.inspect( obj, FORMAT_OPTIONS_EXTRA_SHORT ) );
+                objString = util.inspect( obj, FORMAT_OPTIONS_EXTRA_SHORT );
             }
-            chat.printMessage( msg.toHtml( true ) );
+            let objStringParts = makeFittingMessages( objString );
+            for( let part of objStringParts ) chat.printMessage( part );
         };
+    }
+
+    function makeFittingMessages( text ) {
+        let parts = [];
+        let cur = text;
+        while( cur.length > BUFFER_LENGTH_LONG ) {
+            let first = cur.slice( 0, BUFFER_LENGTH_LONG );
+            let divisionIndex = first.lastIndexOf( '\n' );
+            if( divisionIndex < 0 ) divisionIndex = BUFFER_LENGTH_LONG;
+            parts.push( first.slice( 0, divisionIndex ) );
+            cur = cur.slice( divisionIndex );
+        }
+        parts.push( cur );
+        return parts;
     }
 
     function generateRawFunction( opcode ) {
@@ -800,7 +816,7 @@ function utilityBox( mod ) {
     function listAnalysers() {
         msg.clear();
         let opcodes = Object.keys( analyser );
-        let i = 0
+        let i = 0;
         for( ; i < opcodes.length - 1; i++ ) {
             msg.highlight( opcodes[i]).color().text( ', ' );
         }
@@ -990,33 +1006,37 @@ function utilityBox( mod ) {
         }
         msg.text( "#" ).value( code ).highlight( ` ${name}` ).color();
         msg.text( `${version && version != null?`[v.${version}]`:"[no definition]"}` );
-        return msg.toHtml( true );
+        return msg;
     }
 
     function printRawData( code, data, fromServer, fake ) {
         let name = OPCODE_NAME_MAP.get( code );
         let version = LATEST_VERSION_MAP.get( name );
-        let scanMsg = makePacketMsgHeader( name, version, code, fromServer, fake )
-        chat.printMessage( scanMsg );
-        if( mod.settings.consoleOut ) mod.log( scanMsg );
-        if ( name != undefined ) {
-            try {
-                let eventData = mod.dispatch.protocol.parse(
-                    mod.dispatch.protocol.resolveIdentifier( name , version ? version : "*" ),
-                    data
-                );
-                if( verbose ) {
-                    let dataMsg = `Data: ${ util.inspect( eventData, FORMAT_OPTIONS_EXTRA_SHORT ) }`;
-                    chat.printMessage( dataMsg );
-                    if( mod.settings.consoleOut )
-                        mod.log( dataMsg );
-                }
-            } catch ( err ) {
-                let errorMsg = `${ util.formatWithOptions( FORMAT_OPTIONS_SHORT, err.message ) }\n`
-                                +`Data: ${ util.inspect( data ) }`;
-                if( verbose ) chat.printMessage( errorMsg );
-                if( mod.settings.consoleOut ) mod.log( errorMsg );
+        let scanMsg = makePacketMsgHeader( name, version, code, fromServer, fake );
+        chat.printMessage( scanMsg.toHtml( !mod.settings.consoleOut ) );
+        if( mod.settings.consoleOut ) mod.log( scanMsg.toString( true ) );
+        let eventData = null;
+        try {
+            eventData = mod.dispatch.protocol.parse(
+                mod.dispatch.protocol.resolveIdentifier( name , version ? version : "*" ),
+                data
+            );
+        } catch ( _ ) {
+            // could not parse data
+        }
+        if( verbose ) {
+            let dataMsg;
+            if( eventData != null ) {
+                dataMsg = `Data: ${ util.inspect( eventData, FORMAT_OPTIONS_EXTRA_SHORT ) }`;
+            } else {
+                let rawObj = parseRawData( data );
+                let hexData = addSpace( rawObj.data.toString( "hex" ), 8 );
+                dataMsg = `Raw Data (4 Byte Header + ${rawObj.length - 4} Byte Body): `
+                    +`${ util.inspect( hexData, FORMAT_OPTIONS_LONG ) }`;
             }
+            for( let partMsg of makeFittingMessages( dataMsg ) )
+                chat.printMessage( partMsg );
+            if( mod.settings.consoleOut ) mod.log( dataMsg );
         }
     }
 
@@ -1032,7 +1052,7 @@ function utilityBox( mod ) {
         });
         msg.clear();
         msg.text( "Scan raw packets " );
-        if ( !result.hook ) {
+        if ( result.hook == undefined ) {
             hookManager.unhookGroup( "raw" );
             msg.disable( "disabled" );
         } else {
@@ -1055,7 +1075,7 @@ function utilityBox( mod ) {
                 let code = NAME_OPCODE_MAP.get( def );
                 let version = LATEST_VERSION_MAP.get( def );
                 if( code ) hookManager.hook( groupName, def, version, ( e ) => {
-                    mod.command.message( makePacketMsgHeader( def, version, code ) );
+                    mod.command.message( makePacketMsgHeader( def, version, code ).toHtml( true ) );
                     if( verbose ) mod.command.message( `Data: ${util.inspect( e, FORMAT_OPTIONS_EXTRA_SHORT )}` );
                 });
                 else noDefs.push( def );
@@ -1093,9 +1113,9 @@ function utilityBox( mod ) {
         let result = hookManager.hook( groupName, "*", "raw", ( code, data, fromServer, fake ) => {
             if ( opcodes.includes( code ) ) {
 
+                printRawData( code, data, fromServer, fake );
                 let opcodeName = OPCODE_NAME_MAP.get( code );
                 let version = LATEST_VERSION_MAP.get( opcodeName );
-                mod.command.message( makePacketMsgHeader( opcodeName, version, code, fromServer, fake ) );
                 if ( !logger[scanName]) {
                     logger[scanName] = bunyan.createLogger({
                         name: "opcode",
@@ -1119,7 +1139,6 @@ function utilityBox( mod ) {
                 let e = null;
                 try {
                     e = mod.dispatch.protocol.parse( mod.dispatch.protocol.resolveIdentifier( opcodeName, version ? version : "*" ), data );
-                    if( verbose ) mod.command.message( `Data: ${ util.inspect( e, FORMAT_OPTIONS_EXTRA_SHORT ) }` );
                 } catch ( _ ) {
                     // did not work, so skip
                 }
@@ -1132,16 +1151,15 @@ function utilityBox( mod ) {
                         event: serializeData( e ),
                     });
                 } else {
-                    let header = data.slice( 0, 4 );
-                    let body = data.slice( 4 );
-                    logger[scanName].debug({
-                        def: opcodeName != undefined ? opcodeName : "undefined",
-                        length: header.readUInt16LE(),
-                        opcode: header.readUInt16LE( 2 ),
-                        hex: addSpace( body.toString( "hex" ), 8 ),
-                        string: body.toString(),
-                        data: body,
-                    });
+                    let rawObj = parseRawData( data );
+                    let body = rawObj.data;
+                    let hexData = addSpace( body.toString( "hex" ), 8 );
+                    logger[scanName].debug(
+                        Object.assign( rawObj, {
+                            dataAsHex: hexData,
+                            dataAsString: body.toString()
+                        })
+                    );
                 }
             }
         });
@@ -1166,6 +1184,19 @@ function utilityBox( mod ) {
 
     function addSpace( s, charNum = 2 ) {
         return s.replace( new RegExp( `.{${charNum}}\\B`, "g" ), "$& " );
+    }
+
+    function parseRawData( data ) {
+        let header = data.slice( 0, 4 );
+        let body = data.slice( 4 );
+        let code = header.readUInt16LE( 2 );
+        let opcodeName = OPCODE_NAME_MAP.get( code );
+        return {
+            def: opcodeName != undefined ? opcodeName : "undefined",
+            length: header.readUInt16LE(),
+            opcode: code,
+            data: body
+        };
     }
 
     /**
@@ -1265,14 +1296,14 @@ function utilityBox( mod ) {
             chat.printMessage( "There is already a position saved with this name. Choose another name." );
             return false;
         }
-        let pos = lastLocation.loc;
+        let pos = { loc: lastLocation.loc, zone: zone };
         positions.set( name, pos );
         chat.printMessage( `Position "${JSON.stringify( pos )}" saved as "${name}".` );
         return true;
     }
 
     function printPosition( value, key ) {
-        chat.printMessage( `"${key}": ${JSON.stringify( value )}` );
+        chat.printMessage( `"${key}": ${util.inspect( value )}` );
     }
 
     function printPositions() {
@@ -1422,6 +1453,8 @@ function utilityBox( mod ) {
 
         hookManager.addTemplate( "positioning", "C_PLAYER_LOCATION", 5, event => { lastLocation = event; });
 
+        hookManager.addTemplate( "positioning", "S_LOAD_TOPO", 3, e => { zone = e.zone; });
+
         /*
         uint64 gameId
         int32  id
@@ -1553,7 +1586,7 @@ function utilityBox( mod ) {
                     default:
                         s += `# unknown type (${item.type}) id: ${item.id}`;
                 }
-                s += ` (count: ${item.amount}, cd: ${item.cooldown})\n`
+                s += ` (count: ${item.amount}, cd: ${item.cooldown})\n`;
             }
             s += "]";
             chat.printMessage( s );
@@ -2017,10 +2050,8 @@ class UtilityBox {
             ui.close();
             ui = null;
         }
-        let posData = [];
         if( positions != undefined ) {
-            positions.forEach( ( v, k ) => posData.push([k, v]) );
-            FileHelper.saveJson( posData, POSITIONS_PATH );
+            FileHelper.saveJson( Array.from( positions ), POSITIONS_PATH );
         }
 
         if( dynamicTemplates != undefined && dynamicTemplates.length ) {
