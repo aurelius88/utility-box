@@ -1,11 +1,11 @@
 module.exports = {
     env: {
-        es6: true,
+        es2020: true,
         node: true
     },
     extends: "eslint:recommended",
     parserOptions: {
-        ecmaVersion: 2017,
+        ecmaVersion: 2020,
         sourceType: "script",
         ecmaFeatures: {
             impliedStrict: true
@@ -43,6 +43,6 @@ module.exports = {
                 ignorePattern: "^//\\s*"
             }
         ],
-        "space-in-parens": ["warn", "always", { exceptions: ["{}", "[]"] }]
+        "space-in-parens": ["warn", "always", { exceptions: ["{}", "[]"] }],
     }
 };
