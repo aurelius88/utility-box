@@ -1,7 +1,7 @@
 {
     "files": {
-        "index.js": "18d014d178c32d25bc98dd2ff5061b61204cca51f5949a43e21cdffc5f02ccec",
-        "module.json": "209fe07949bb68400bbbcb6dfbe6bd92ed63e43e84c5914e94556e52a59e007f",
+        "index.js": "da94b6564bc0794926038272470ba477bc0fe310bdb9698718681513fdc27e34",
+        "module.json": "e6fe78b02032140639afec2e4466e28c907cc1d6c25aa4859e55af52558d4223",
         "settings_migrator.js": "99a1968549cd2b4a31f818b7ccc973d08b16e46bd2b86f40a3f19763169e41c7",
         "packet-analyser.js": "80aacad39038056069047a0ed223d4c2bf1adc1406c19e79751b9b05894331a5",
         "package-lock.json": "0d7aa63124cfca17f7ea59aa8db4996e45c4e80a34bd60059b27ce9698196cea",
@@ -724,6 +724,6 @@
         "node_modules/moment/min/locales.js": "18966efc0954817d78212d963d28187b953a57b69e0fffc7a5615eaeef5de31d",
         "node_modules/moment/min/moment-with-locales.js": "2b6175867521f605385474c179741b264abce287ddc01d5a51cd3b881c7ca7ce",
         "LICENSE": "dadaef1b79cff760f4d3b0bbab2ca748587f5a65529a08e9c3cd23110dfe2e42",
-        "package.json": "c658dca6667eca78936dc8385aa394b2e5652f4a2604ce342bc04304e1b3c256"
+        "package.json": "d56789e4b3c825eb66b04eb4b454278a045586ee9a2909e3eeaced3127a59e90"
     }
 }

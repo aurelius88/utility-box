@@ -1,6 +1,6 @@
 {
   "name": "utility-box",
-  "version": "0.3.20",
+  "version": "0.3.21",
   "description": "A tool to help developing modules. Mostly analysing packets and stuff like that.",
   "main": "index.js",
   "dependencies": {

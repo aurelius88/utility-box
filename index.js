@@ -237,7 +237,7 @@ function utilityBox( mod ) {
                         msg.text( 'Successfully added hook to group "' ).value( group ).color();
                         msg.text( '" with definition named "' ).value( def ).color();
                         msg.text( '" version "' ).value( version ).color();
-                        msg.text( ' and variables: ' ).value( util.inspect( vars ) ).color();
+                        msg.text( '" and variables: ' ).value( vars.length > 0 ? util.inspect( vars ) : "all variables" ).color();
                         msg.text( '.' );
                         chat.printMessage( msg.toHtml( true ) );
                         dynamicTemplates.push({ group: group, id: result.id, opcode: NAME_OPCODE_MAP.get( def ), def: def, version: version, vars: vars });
