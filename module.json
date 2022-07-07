@@ -1,8 +1,8 @@
 {
     "name": "utility-box",
     "author": "aurelius88",
-    "description": "Tool for help developing modules. Mostly analysing packets and stuff like that.",
-    "version": "0.3.19-dev",
+    "description": "A tool to help developing modules. Mostly analysing packets and stuff like that.",
+    "version": "0.3.20-dev",
     "options": {
         "niceName": "Utility-Box (dev)",
         "settingsVersion": 2,

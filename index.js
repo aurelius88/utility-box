@@ -142,7 +142,6 @@ function utilityBox( mod ) {
     function generateFunction( def, version, vars ) {
         // filter non-variables and non-variable additions
         vars = filterNonVariables( vars );
-        // e is used in eval
         return e => {
             chat.printMessage( makePacketMsgHeader( def, version, NAME_OPCODE_MAP.get( def ) ).toHtml( true ) );
             let objString;
@@ -150,8 +149,7 @@ function utilityBox( mod ) {
             else {
                 let obj = {};
                 for ( let v of vars ) {
-                    let value = eval( "e." + v );
-                    obj[v] = value;
+                    obj[v] = e[v];
                 }
                 objString = util.inspect( obj, FORMAT_OPTIONS_EXTRA_SHORT );
             }
