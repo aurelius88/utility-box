@@ -1,0 +1,31 @@
+{
+  "name": "utility-box",
+  "version": "0.3.20",
+  "description": "A tool to help developing modules. Mostly analysing packets and stuff like that.",
+  "main": "index.js",
+  "dependencies": {
+    "bunyan": "^1.8.12"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "manifest": "node mani-gen.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aurelius88/utility-box.git"
+  },
+  "keywords": [
+    "tera",
+    "toolbox",
+    "mod",
+    "packet",
+    "analyse"
+  ],
+  "author": "aurelius88",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/aurelius88/utility-box/issues"
+  },
+  "homepage": "https://github.com/aurelius88/utility-box#readme"
+}

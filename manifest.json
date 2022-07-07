@@ -722,6 +722,8 @@
         "node_modules/moment/min/locales.min.js": "53c07687f798fdb8b0c05c7512308a40f34ebeeaa3a5ee6c48d8654ef4ea70e0",
         "node_modules/moment/min/moment-with-locales.min.js": "f1dea4239710130a1f91999a3d345b2a0c83ef418de660e94d834ff585a14e52",
         "node_modules/moment/min/locales.js": "18966efc0954817d78212d963d28187b953a57b69e0fffc7a5615eaeef5de31d",
-        "node_modules/moment/min/moment-with-locales.js": "2b6175867521f605385474c179741b264abce287ddc01d5a51cd3b881c7ca7ce"
+        "node_modules/moment/min/moment-with-locales.js": "2b6175867521f605385474c179741b264abce287ddc01d5a51cd3b881c7ca7ce",
+        "LICENSE": "dadaef1b79cff760f4d3b0bbab2ca748587f5a65529a08e9c3cd23110dfe2e42",
+        "package.json": "c658dca6667eca78936dc8385aa394b2e5652f4a2604ce342bc04304e1b3c256"
     }
 }
