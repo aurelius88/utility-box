@@ -1,5 +1,4 @@
-const log = require('../../node_modules/tera-data-parser/lib/logger'),
-      { Customize, SkillID, Vec3 } = require('../../node_modules/tera-data-parser/lib/protocol/types')
+const { Customize, SkillID, Vec3 } = require('../../node_modules/tera-data-parser/lib/protocol/types')
 
 const MULT_INT16_TO_RAD = 1 / 0x8000 * Math.PI,
       MULT_RAD_TO_INT16 = 1 / Math.PI * 0x8000
@@ -15,7 +14,7 @@ class Readable {
 
     bool() {
         const ret = this.byte()
-        if(ret > 1) log.debug(new Error('read byte not 0 or 1 for bool'))
+        if(ret > 1) console.log(new Error('read byte not 0 or 1 for bool'))
         return !!ret
     }
 
@@ -129,29 +128,30 @@ class Readable {
     }
 }
 
-const TYPES = [
-    "bool",
-    "byte",
-    "int16",
-    "uint16",
-    "int32",
-    "uint32",
-    "float",
-    "int64",
-    "uint64",
-    "double",
-    "vec3",
-    "vec3fa",
-    "angle",
-    "skillid32",
-    "skillid",
-    "customize",
-    "float",
-    "double",
-    "string",
-    "array",
-    "object"
-];
+const TYPE_BY_NAME = {
+    "bool": "bool",
+    "byte": "byte",
+    "int16": "int16",
+    "uint16": "uint16",
+    "int32": "int32",
+    "uint32": "uint32",
+    "float": "float",
+    "int64": "int64",
+    "uint64": "uint64",
+    "double": "double",
+    "vec3": "vec3",
+    "vec3fa": "vec3fa",
+    "angle": "angle",
+    "skillid32": "skillid32",
+    "skillid": "skillid",
+    "customize": "customize",
+    "string": "string",
+    "bytes": "bytes",
+    "array": "array",
+    "object": "object"
+};
+
+const TYPES = Object.keys(TYPE_BY_NAME);
 
 function choose( type, readable ) {
     switch ( type ) {
@@ -209,6 +209,10 @@ class PacketAnalyser extends Readable {
         this.choose( "uint16" ); // opcode
     }
 
+    static get Types() {
+        return TYPE_BY_NAME;
+    }
+
     readAllCustom( byteSize, read ) {
         let i = 0;
         let shift = 1;
@@ -252,22 +256,26 @@ class PacketAnalyser extends Readable {
 
     try( type ) {
         if ( !TYPES.includes( type ) ) throw new TypeError( `Type "${type}" is unknown. Available types: ${TYPES}` );
-        let value = choose( type, this );
+		let value;
+        let tmpPos = this.position;
+        try {
+            value = choose( type, this );
+        } catch ( _ ) {
+            // revert position if changed and skip unsupported types
+            this.position = tmpPos;
+            return;
+        }
         let length = this.position - this.selectedPosition;
         this.position = this.selectedPosition;
         return { type, value, length };
     }
 
-    tryAll() {
-        let data = [];
-        let tmpPos = this.position;
+    tryAll( filter = () => true ) {
+        let data = {};
         for ( let type of TYPES ) {
-            try {
-                data.push( this.try( type ) );
-            } catch ( _ ) {
-                // revert position if changed and skip unsupported types
-                this.position = tmpPos;
-            }
+			let obj = this.try( type );
+			if( obj && filter( obj ) ) 
+				data[type] = obj;
         }
         return data;
     }

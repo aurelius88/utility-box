@@ -266,10 +266,19 @@ function utilityBox( mod ) {
                         msg.text( "You have chosen:\n" );
                         let data = analyser[analyser.default].choose( type );
                         msg.value( util.formatWithOptions( FORMAT_OPTIONS_SHORT, data ) );
-                        msg.color().text( ".\nPacket so far: " );
                         let analysedPacket = analyser[analyser.default].analysedPacket;
-                        msg.value( util.formatWithOptions( FORMAT_OPTIONS_SHORT, analysedPacket ) );
-                        msg.color().text( " (" );
+                        msg.color().text( `.\nPacket so far: [${analysedPacket.length > 1 ? '\n' : ' '}` );
+                        let i = 0;
+                        while( i < analysedPacket.length - 1 ) {
+                            msg.text( '  ' ).value( util.formatWithOptions( FORMAT_OPTIONS_SHORT, analysedPacket[i]) );
+                            msg.color().text( ',\n' );
+                            i++;
+                        }
+                        if( i < analysedPacket.length ) {
+                            msg.text( '  ' ).value( util.formatWithOptions( FORMAT_OPTIONS_SHORT, analysedPacket[i]) );
+                            msg.color().text( analysedPacket.length > 1 ? '\n' : ' ' );
+                        }
+                        msg.text( ']' );                        msg.color().text( " (" );
                         msg.highlight( analyser[analyser.default].selectedPosition );
                         msg.color().text( ")" );
                         chat.printMessage( msg.toHtml() );
@@ -913,12 +922,27 @@ function utilityBox( mod ) {
             msg.color().text( "\nCurrent buffer segment:\n" );
             let curBuffer = analyser[analyser.default].currentBufferSegment;
             msg.value( util.formatWithOptions( FORMAT_OPTIONS_SHORT, curBuffer ) );
-            let data = analyser[analyser.default].tryAll();
-            data.map( x => {
-                msg.text( "\n" ).highlight( `${x.type}: `.padEnd( 16, " " ) );
-                msg.value( util.formatWithOptions( FORMAT_OPTIONS_COMMON, x.value ) );
-                msg.color().text( `(${x.length})` );
-            });
+            let notTooSmallNumber = value => typeof value !== 'number'
+                || ( value === 0 || value > 0.001 || value < -0.001 );
+            let filter = obj => {
+                if( typeof obj.value === 'object' ) {
+                    for( let prop in obj.value )
+                        if( !notTooSmallNumber( obj.value[prop]) ) return false;
+                    return true;
+                } else return notTooSmallNumber( obj.value );
+            };
+            let data = analyser[analyser.default].tryAll( filter );
+            for( let part in data ) {
+                let dataPart = data[part];
+                msg.text( "\n" ).highlight( `${dataPart.type}: `.padEnd( 16, " " ) );
+                msg.value( util.formatWithOptions( FORMAT_OPTIONS_COMMON, dataPart.value ) );
+                msg.color().text( `(${dataPart.length}) Next int32: ` );
+                analyser[analyser.default].choose( dataPart.type );
+                let nextInt = analyser[analyser.default].try( PacketAnalyser.Types.int32 );
+                if( nextInt !== undefined ) dataPart.nextInt = nextInt.value;
+                analyser[analyser.default].undo();
+                msg.value( util.formatWithOptions( FORMAT_OPTIONS_COMMON, dataPart.nextInt ) );
+            }
             chat.printMessage( msg.toHtml() );
         }
     }
@@ -959,7 +983,10 @@ function utilityBox( mod ) {
         if ( opcode == undefined ) {
             if( !analyser.default ) return printHelpList( this.help.analyse );
             else return chat.printMessage(
-                util.formatWithOptions( Object.keys( analyser ).map( x => ( x == "default" ? "selected: " + x.default : x ) ) )
+                util.formatWithOptions(
+                    FORMAT_OPTIONS_COMMON,
+                    Object.keys( analyser ).map( x => ( x === "default" ? 'selected: ' : '' ) + analyser[x])
+                )
             );
         }
         if ( !checkOpcode( opcode ) ) return;
@@ -2059,4 +2086,4 @@ class UtilityBox {
         stopScanning();
     }
 }
-module.exports = UtilityBox;
+module.exports.NetworkMod = UtilityBox;
