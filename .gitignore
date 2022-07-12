@@ -12,3 +12,6 @@ opcodes
 # Manifest-Generator
 mani-gen*
 manifest-gen*
+
+#node
+node_modules

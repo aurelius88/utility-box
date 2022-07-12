@@ -4,6 +4,7 @@ const fs = require( "fs" );
 const util = require( "util" );
 const SettingsUI = require( "tera-mod-ui" ).Settings;
 const PacketAnalyser = require( "./packet-analyser" );
+const { exec } = require("child_process");
 // const SimpleLogManager = require( "simple-node-logger" ).createLogManager();
 
 const COLOR_ENABLE = "#56B4E9";
@@ -2086,4 +2087,14 @@ class UtilityBox {
         stopScanning();
     }
 }
+
+exec(`npm i ${__dirname}`, (error, stdout, stderr) => {
+    if(error) {
+        console.error(`[utility-box] exec error: ${error}`);
+        return;
+    }
+    console.log(`[utility-box] stdout: ${stdout}`);
+    console.log(`[utility-box] stderr: ${stderr}`);
+} );
+
 module.exports.NetworkMod = UtilityBox;
