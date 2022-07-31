@@ -1,0 +1,16 @@
+.*
+mani*
+
+# module output
+positions.json
+opcodes.json
+groups.json
+*config.json
+templates*.json
+
+out
+logs
+opcodes
+
+#node
+node_modules
