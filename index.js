@@ -1,5 +1,5 @@
 const { exec } = require("child_process");
-exec(`npm i ${__dirname}`, (error, stdout, stderr) => {
+exec(`npm i`, { cwd: __dirname }, (error, stdout, stderr) => {
     if(error) {
         console.error(`[utility-box] exec error: ${error}`);
         return;
